@@ -37,6 +37,8 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
@@ -197,6 +199,33 @@ public class SeedMiner extends Module {
         .defaultValue(2)
         .range(0, 10)
         .sliderRange(0, 5)
+        .build()
+    );
+
+    private final Setting<Boolean> collectDrops = sgMining.add(new BoolSetting.Builder()
+        .name("collect-drops")
+        .description("Walk to the drops of mined ores before moving on, so none are left behind.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> collectRadius = sgMining.add(new IntSetting.Builder()
+        .name("collect-radius")
+        .description("How far away (blocks) drops are collected.")
+        .defaultValue(6)
+        .range(1, 16)
+        .sliderRange(2, 12)
+        .visible(collectDrops::get)
+        .build()
+    );
+
+    private final Setting<Integer> collectTimeout = sgMining.add(new IntSetting.Builder()
+        .name("collect-timeout")
+        .description("Give up on a drop after this many seconds.")
+        .defaultValue(8)
+        .range(1, 60)
+        .sliderRange(2, 20)
+        .visible(collectDrops::get)
         .build()
     );
 
@@ -435,6 +464,14 @@ public class SeedMiner extends Module {
     private long pauseUntil;
     private BlockPos detourPos;
     private int detourTicks;
+
+    // Drop collection state
+    private ItemEntity collectItem;
+    private int collectTicks, collectRetries;
+    /** Drops that could not be reached, by entity id. */
+    private final Set<Integer> ignoredDrops = new HashSet<>();
+    /** The target ore is done, but the follow-up (detour, pause) waits until its drops are collected. */
+    private boolean targetDonePending;
     private boolean warnedNoSeed;
     private String status = "Idle";
 
@@ -454,6 +491,7 @@ public class SeedMiner extends Module {
         warnedNoSeed = false;
         lastScanCenter = null;
         pauseUntil = 0;
+        ignoredDrops.clear();
         clearTarget();
         status = "Waiting for seed";
     }
@@ -466,6 +504,7 @@ public class SeedMiner extends Module {
         }
         target = null;
         detourPos = null;
+        collectItem = null;
         status = "Idle";
     }
 
@@ -646,10 +685,11 @@ public class SeedMiner extends Module {
         }
 
         if (pauseNearPlayers.get() && isPlayerNearby()) {
-            if (target != null || detourPos != null) {
+            if (target != null || detourPos != null || collectItem != null) {
                 baritone.stop();
                 target = null;
                 detourPos = null;
+                collectItem = null;
             }
             status = "Paused, player nearby";
             return false;
@@ -697,7 +737,28 @@ public class SeedMiner extends Module {
                 }
             }
 
-            if (target == null) onTargetDone();
+            if (target == null) targetDonePending = true;
+        }
+
+        // Pick up the drops before moving on, Baritone would otherwise walk away during the pickup delay
+        if (target == null && detourPos == null && collectDrops.get()) {
+            if (collectItem == null) findDrop();
+            if (collectItem != null) {
+                if (baritone.wasHijacked()) {
+                    warning("Baritone was given another goal, pausing. Re-enable the module to continue.");
+                    baritone.stop();
+                    toggle();
+                    return;
+                }
+                updateCollect();
+                status = "Collecting drops";
+                return;
+            }
+        }
+
+        if (targetDonePending) {
+            targetDonePending = false;
+            onTargetDone();
         }
 
         if (detourPos != null) {
@@ -736,6 +797,70 @@ public class SeedMiner extends Module {
         }
 
         status = "Mining " + target.kind().name().toLowerCase().replace('_', ' ') + " at " + target.pos().toShortString();
+    }
+
+    // Drop collection
+
+    /** Looks for the nearest drop of a selected ore and lets Baritone walk to it. */
+    private void findDrop() {
+        double best = collectRadius.get() * collectRadius.get();
+        ItemEntity found = null;
+
+        for (Entity entity : mc.world.getEntities()) {
+            if (!(entity instanceof ItemEntity item) || item.isRemoved() || ignoredDrops.contains(item.getId())) continue;
+            if (!isWantedDrop(item.getStack())) continue;
+
+            double distance = item.squaredDistanceTo(mc.player);
+            if (distance <= best) {
+                best = distance;
+                found = item;
+            }
+        }
+
+        if (found != null) {
+            collectItem = found;
+            collectTicks = 0;
+            collectRetries = 0;
+            baritone.walkNear(found.getBlockPos());
+        }
+    }
+
+    private void updateCollect() {
+        ItemEntity item = collectItem;
+
+        // Picked up (or despawned, burned, ...)
+        if (item.isRemoved()) {
+            collectItem = null;
+            return;
+        }
+
+        if (++collectTicks > collectTimeout.get() * 20) {
+            giveUpDrop();
+            return;
+        }
+
+        if (!baritone.isWorking()) {
+            // Next to it: just wait, fresh drops can only be picked up after a short delay
+            if (item.squaredDistanceTo(mc.player) <= 2.25) return;
+
+            // The item moved (fell down) or Baritone gave up, try again
+            if (collectRetries++ < 2) baritone.walkNear(item.getBlockPos());
+            else giveUpDrop();
+        }
+    }
+
+    private void giveUpDrop() {
+        ignoredDrops.add(collectItem.getId());
+        collectItem = null;
+        baritone.stop();
+    }
+
+    private boolean isWantedDrop(ItemStack stack) {
+        for (Block block : blocks.get()) {
+            OreKind kind = OreKind.of(block);
+            if (kind != null && kind.isDrop(stack.getItem())) return true;
+        }
+        return false;
     }
 
     // Anti-detection
@@ -871,6 +996,8 @@ public class SeedMiner extends Module {
         if (baritone != null) baritone.stop();
         target = null;
         detourPos = null;
+        collectItem = null;
+        targetDonePending = false;
     }
 
     private boolean isLoaded(BlockPos pos) {

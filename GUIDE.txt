@@ -138,6 +138,11 @@ Otherwise the predictions are wrong.
                       staying on your level.                     Default: 2
   target-timeout      Skip an ore after this many seconds        Default: 90
   path-retries        Retries when Baritone can't find a path    Default: 2
+  collect-drops       Walk to the drops of mined ores (diamonds,
+                      raw iron, ...) before moving on, so none
+                      are left behind                            Default: on
+    collect-radius    How far away drops are collected (blocks)  Default: 6
+    collect-timeout   Give up on a drop after this many seconds  Default: 8
   configure-baritone  Sets Baritone's allowBreak=true (needed!)
                       and the two options below. Restored when
                       the module is disabled.                    Default: on

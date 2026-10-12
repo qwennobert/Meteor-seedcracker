@@ -67,6 +67,7 @@ because the module simply gives Baritone the next ore.
 | | `vertical-cost` | How much height differences count when picking the next ore |
 | | `target-timeout` | Skip an ore after N seconds |
 | | `path-retries` | Retries when Baritone can't find a path |
+| | `collect-drops` / `collect-radius` / `collect-timeout` | Walk to the drops of mined ores before moving on, so none are left behind |
 | | `configure-baritone` | Sets `allowBreak=true` plus `allow-place` / `allow-parkour`; restored afterwards |
 | | `disable-when-done` | Disable when no ores are left |
 | Safety | `min-health` | Disable at low health |
