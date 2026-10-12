@@ -1,9 +1,8 @@
 package com.qwennobert.seedminer.seed;
 
 public enum SeedSource {
-    /** Manual seed if set, otherwise the SeedcrackerX result, otherwise SeedMapper's configured seed. */
+    /** Manual seed if set, otherwise the seed SeedMapper resolves. */
     Auto,
     Manual,
-    SeedcrackerX,
     SeedMapper
 }

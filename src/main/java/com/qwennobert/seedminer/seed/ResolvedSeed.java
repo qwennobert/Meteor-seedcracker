@@ -3,45 +3,37 @@ package com.qwennobert.seedminer.seed;
 import com.github.cubiomes.Cubiomes;
 import com.qwennobert.seedminer.SeedMinerAddon;
 import dev.xpple.seedmapper.util.SeedIdentifier;
-import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
 
 /**
- * A world seed together with where it came from.
+ * A world seed together with the generator settings and where it came from.
  */
-public record ResolvedSeed(long seed, int generatorFlags, SeedSource origin) {
-    private static final boolean SEEDCRACKERX = FabricLoader.getInstance().isModLoaded("seedcrackerx");
-
-    public static ResolvedSeed resolve(SeedSource source, String manualSeed, boolean largeBiomes) {
+public record ResolvedSeed(long seed, int version, int generatorFlags, String origin) {
+    public static ResolvedSeed resolve(MinecraftClient mc, SeedSource source, String manualSeed, boolean largeBiomes) {
         int flags = largeBiomes ? Cubiomes.LARGE_BIOMES() : 0;
 
         return switch (source) {
             case Manual -> manual(manualSeed, flags);
-            case SeedcrackerX -> seedcrackerX(flags);
-            case SeedMapper -> seedMapper(flags);
+            case SeedMapper -> seedMapper(mc, flags);
             case Auto -> {
                 ResolvedSeed seed = manual(manualSeed, flags);
-                if (seed == null) seed = seedcrackerX(flags);
-                if (seed == null) seed = seedMapper(flags);
-                yield seed;
+                yield seed != null ? seed : seedMapper(mc, flags);
             }
         };
     }
 
     private static ResolvedSeed manual(String text, int flags) {
         Long seed = parseSeed(text);
-        return seed == null ? null : new ResolvedSeed(seed, flags, SeedSource.Manual);
+        return seed == null ? null : new ResolvedSeed(seed, Cubiomes.MC_1_21_11(), flags, "manual seed");
     }
 
-    private static ResolvedSeed seedcrackerX(int flags) {
-        if (!SEEDCRACKERX) return null;
-        Long seed = SeedCrackerXBridge.crackedSeed();
-        return seed == null ? null : new ResolvedSeed(seed, flags, SeedSource.SeedcrackerX);
-    }
+    private static ResolvedSeed seedMapper(MinecraftClient mc, int flags) {
+        SeedMapperSeed.Result result = SeedMapperSeed.get(mc);
+        if (result == null) return null;
 
-    private static ResolvedSeed seedMapper(int flags) {
-        SeedIdentifier identifier = SeedMapperSeed.get();
-        if (identifier == null) return null;
-        return new ResolvedSeed(identifier.seed(), flags | identifier.generatorFlags(), SeedSource.SeedMapper);
+        SeedIdentifier identifier = result.seed();
+        int version = identifier.hasVersion() ? identifier.version() : Cubiomes.MC_1_21_11();
+        return new ResolvedSeed(identifier.seed(), version, flags | identifier.generatorFlags(), result.origin());
     }
 
     /**

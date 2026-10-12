@@ -1,16 +1,17 @@
 # Seed Miner – Meteor-Client-Addon (Minecraft 1.21.11)
 
 Seed Miner berechnet aus dem Welt-Seed, wo Erze liegen, und lässt sie von Baritone automatisch abbauen.
-Den Seed bekommt das Addon von [SeedcrackerX](https://github.com/19MisterX98/SeedcrackerX), von [SeedMapper](https://github.com/xpple/SeedMapper)
-oder du gibst ihn selbst ein. Alle Parameter lassen sich in der Meteor-GUI einstellen.
+Den Seed übernimmt das Addon aus [SeedMapper](https://github.com/xpple/SeedMapper) oder du gibst ihn selbst ein.
+Alle Parameter lassen sich in der Meteor-GUI einstellen.
 
 > Gedacht für den eigenen (self-hosted) Server oder Singleplayer. Auf öffentlichen Servern ist das Cheating und führt zum Bann.
 
 ## Wie es funktioniert
 
-1. **Seed**: SeedcrackerX knackt den Seed beim Spielen und gibt ihn über seine API direkt an das Addon weiter.
-   Alternativ wird der Seed aus SeedMapper (`/sm:config Seed set <seed>`) übernommen oder in den Moduleinstellungen eingetragen.
-   Auf dem eigenen Server bekommst du ihn einfach mit `/seed`.
+1. **Seed**: Das Addon fragt SeedMapper nach dem Seed der aktuellen Welt, genau wie SeedMapper es für seine eigenen
+   Befehle macht. Dabei gilt SeedMappers Reihenfolge (`SeedResolutionOrder`): zuerst `/sm:config Seed set <seed>`,
+   dann die pro Server gespeicherten Seeds (`/sm:config SavedSeeds add <seed>`), dann SeedMappers Online-Datenbank.
+   Alternativ trägst du den Seed in den Moduleinstellungen ein. Auf dem eigenen Server bekommst du ihn mit `/seed`.
 2. **Vorhersage**: Das Addon nutzt die cubiomes-Bibliothek, die in SeedMapper steckt (gleiche Erz-Logik wie `/sm:highlight block`).
    Damit berechnet es in einem Hintergrund-Thread für alle Chunks um dich herum die Erz-Positionen.
 3. **Prüfung**: In geladenen Chunks werden vorhergesagte Positionen verworfen, die in Wirklichkeit Luft sind (Höhlen, schon abgebaut).
@@ -28,7 +29,6 @@ In den `mods`-Ordner legen (alles für **1.21.11**):
 | [Meteor Client](https://meteorclient.com/) 1.21.11 | ja | |
 | [SeedMapper](https://modrinth.com/mod/seedmapper/versions) **2.21.x** | ja | liefert die Erz-Vorhersage (cubiomes) |
 | [Baritone (Meteor-Build)](https://maven.meteordev.org/#/snapshots/meteordevelopment/baritone) 1.21.11 | für Abbau | ohne Baritone werden Erze nur markiert |
-| [SeedcrackerX](https://github.com/19MisterX98/SeedcrackerX/releases/tag/2.15.6) 2.15.6 | optional | knackt den Seed automatisch |
 | Seed Miner (`build/libs/seed-miner-*.jar`) | ja | dieses Addon |
 
 **Du brauchst Java 23 oder neuer**, weil SeedMapper das für 1.21.11 verlangt. Stell im Launcher für die Instanz
@@ -49,8 +49,8 @@ dauerhaft an, weil es Baritone einfach das nächste Erz gibt.
 
 | Gruppe | Einstellung | Beschreibung |
 |---|---|---|
-| Seed | `seed-source` | `Auto` (manuell → SeedcrackerX → SeedMapper), `Manual`, `SeedcrackerX`, `SeedMapper` |
-| | `manual-seed` | Seed als Zahl (oder Text wie im Welt-erstellen-Menü) |
+| Seed | `seed-source` | `Auto` (manueller Seed, sonst SeedMapper), `Manual`, `SeedMapper` |
+| | `manual-seed` | Seed als Zahl (oder Text wie im Welt-erstellen-Menü); leer lassen, um den Seed aus SeedMapper zu nehmen |
 | | `large-biomes` | Einschalten, wenn die Welt mit „Große Biome“ erstellt wurde |
 | Targets | `blocks` | Erze: Kohle, Kupfer, Eisen, Gold, Redstone, Lapis, Diamant, Smaragd, Roheisen-/Rohkupferblock, Nethergold, Quarz, Antiker Schrott |
 | | `ore-veins` | Große Kupfer-/Eisenadern mit einbeziehen (langsamer) |

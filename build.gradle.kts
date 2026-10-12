@@ -52,10 +52,6 @@ repositories {
     }
 }
 
-// Compile-only stubs for optional integrations that are not published to a maven repository (SeedcrackerX).
-// They are never packaged into the jar; the real classes come from the installed mod at runtime.
-val stubs: SourceSet by sourceSets.creating
-
 dependencies {
     // Fabric
     minecraft(libs.minecraft)
@@ -70,6 +66,8 @@ dependencies {
     modCompileOnly(libs.seedmapper) {
         isTransitive = false
     }
+    // Client command API, used to ask SeedMapper for the seed (SeedMapper depends on Fabric API anyway)
+    modCompileOnly(libs.fabric.api)
 
     // Only for the "Minecraft Client" run configuration, not part of the published mod
     modLocalRuntime(libs.baritone)
@@ -81,8 +79,6 @@ dependencies {
     modLocalRuntime(libs.betterconfig)
     modLocalRuntime(libs.clientarguments)
     modLocalRuntime(libs.simplewaypoints)
-
-    compileOnly(stubs.output)
 }
 
 java {

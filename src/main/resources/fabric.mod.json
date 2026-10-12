@@ -3,7 +3,7 @@
   "id": "seed-miner",
   "version": "${version}",
   "name": "Seed Miner",
-  "description": "Meteor Client addon that predicts ores from the world seed (SeedcrackerX / SeedMapper) and mines them with Baritone.",
+  "description": "Meteor Client addon that predicts ores from the world seed (via SeedMapper) and mines them with Baritone.",
   "authors": [
     "qwennobert"
   ],
@@ -15,9 +15,6 @@
   "entrypoints": {
     "meteor": [
       "com.qwennobert.seedminer.SeedMinerAddon"
-    ],
-    "seedcrackerx": [
-      "com.qwennobert.seedminer.seed.SeedCrackerXBridge"
     ]
   },
   "custom": {
@@ -36,8 +33,5 @@
   },
   "recommends": {
     "baritone-meteor": "*"
-  },
-  "suggests": {
-    "seedcrackerx": "*"
   }
 }

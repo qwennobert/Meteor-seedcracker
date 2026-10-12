@@ -64,7 +64,7 @@ public class SeedMiner extends Module {
 
     private final Setting<SeedSource> seedSource = sgSeed.add(new EnumSetting.Builder<SeedSource>()
         .name("seed-source")
-        .description("Where the world seed comes from. Auto: manual seed, then SeedcrackerX, then SeedMapper (/sm:config Seed set).")
+        .description("Where the world seed comes from. Auto: manual seed if set, otherwise SeedMapper (/sm:config Seed set, saved seeds, online database).")
         .defaultValue(SeedSource.Auto)
         .onChanged(v -> invalidate())
         .build()
@@ -72,7 +72,7 @@ public class SeedMiner extends Module {
 
     private final Setting<String> manualSeed = sgSeed.add(new StringSetting.Builder()
         .name("manual-seed")
-        .description("World seed (number or text like in the world creation screen). Leave empty to use SeedcrackerX/SeedMapper.")
+        .description("World seed (number or text like in the world creation screen). Leave empty to use the seed from SeedMapper.")
         .defaultValue("")
         .onChanged(v -> invalidate())
         .build()
@@ -331,7 +331,8 @@ public class SeedMiner extends Module {
     private final List<PredictedOre> renderList = new ArrayList<>();
 
     private BaritoneControl baritone;
-    private ResolvedSeed seed;
+    private ResolvedSeed seed, resolvedSeed;
+    private int seedTimer;
     private RegistryKey<World> dimension;
     private ChunkPos lastScanCenter;
     private boolean paramsDirty = true;
@@ -345,7 +346,7 @@ public class SeedMiner extends Module {
     private String status = "Idle";
 
     public SeedMiner() {
-        super(SeedMinerAddon.CATEGORY, "seed-miner", "Predicts ores from the world seed (SeedcrackerX / SeedMapper) and mines them with Baritone.");
+        super(SeedMinerAddon.CATEGORY, "seed-miner", "Predicts ores from the world seed (via SeedMapper) and mines them with Baritone.");
     }
 
     @Override
@@ -420,11 +421,17 @@ public class SeedMiner extends Module {
 
     /** Resolves the seed and the scan parameters. Returns false if there is nothing to do yet. */
     private boolean updateParams() {
-        ResolvedSeed resolved = ResolvedSeed.resolve(seedSource.get(), manualSeed.get(), largeBiomes.get());
+        // Asking SeedMapper is not free, once per second is plenty
+        if (seed == null || paramsDirty || ++seedTimer >= 20) {
+            seedTimer = 0;
+            resolvedSeed = ResolvedSeed.resolve(mc, seedSource.get(), manualSeed.get(), largeBiomes.get());
+        }
+
+        ResolvedSeed resolved = resolvedSeed;
         if (resolved == null) {
             status = "Waiting for seed";
             if (!warnedNoSeed) {
-                warning("No seed available. Set manual-seed, crack it with SeedcrackerX or use /sm:config Seed set <seed>.");
+                warning("No seed available. Set manual-seed or use /sm:config Seed set <seed> (SeedMapper).");
                 warnedNoSeed = true;
             }
             return false;
@@ -452,7 +459,7 @@ public class SeedMiner extends Module {
                 if (kind != null) kinds.add(kind);
             }
 
-            ScanParams params = new ScanParams(seed.seed(), Cubiomes.MC_1_21_11(), cubiomesDimension, seed.generatorFlags(),
+            ScanParams params = new ScanParams(seed.seed(), seed.version(), cubiomesDimension, seed.generatorFlags(),
                 kinds, Math.min(minY.get(), maxY.get()), Math.max(minY.get(), maxY.get()), oreVeins.get());
 
             if (scanner.setParams(params)) {
@@ -722,7 +729,7 @@ public class SeedMiner extends Module {
 
     private void resetAll() {
         rescan();
-        seed = null;
+        seed = resolvedSeed = null;
         dimension = null;
         paramsDirty = true;
     }
