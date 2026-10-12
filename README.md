@@ -61,6 +61,7 @@ because the module simply gives Baritone the next ore.
 | | `chunk-radius` | Scan radius in chunks |
 | | `min-y` / `max-y` | Height range |
 | | `follow-player` | Keep scanning new chunks while you move |
+| | `mine-seen-ores` | Also mine ores of the selected types that are visible near you, even if the prediction missed them |
 | | `verify` | `Off`, `SkipAir` (default), `Exact` (only keep blocks that really are the ore; does not work with anti-xray) |
 | Mining | `auto-mine` | Mine with Baritone, or only highlight |
 | | `max-distance` | Maximum horizontal distance to an ore |

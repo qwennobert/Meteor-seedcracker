@@ -123,6 +123,11 @@ Otherwise the predictions are wrong.
   min-y / max-y       Height range, e.g. -64 to 16 for
                       diamonds                                   Default: -64 / 320
   follow-player       Keep scanning new chunks while you move    Default: on
+  mine-seen-ores      Also mine ores of the selected types that
+                      are visible within 5 blocks of you, even if
+                      the prediction missed them. Ores you can
+                      already see next to you are mined first, so
+                      no vein is left half done.                 Default: on
   verify              Off     = take every prediction
                       SkipAir = drop positions that are actually
                                 air (recommended)

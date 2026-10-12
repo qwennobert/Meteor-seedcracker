@@ -154,6 +154,13 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> mineSeenOres = sgTargets.add(new BoolSetting.Builder()
+        .name("mine-seen-ores")
+        .description("Also mine ores of the selected types that are visible near you, even if the prediction missed them.")
+        .defaultValue(true)
+        .build()
+    );
+
     private final Setting<VerifyMode> verifyMode = sgTargets.add(new EnumSetting.Builder<VerifyMode>()
         .name("verify")
         .description("Check predictions against loaded chunks. SkipAir: drop positions that are air (caves, already mined). Exact: only keep positions that really contain the ore (does not work with anti-xray).")
@@ -484,6 +491,9 @@ public class SeedMiner extends Module {
     private final Set<BlockPos> finished = new HashSet<>();
     /** Predicted positions where the real ore block was seen, so that turning into air means it was mined. */
     private final Set<BlockPos> seenOre = new HashSet<>();
+    /** The ore kinds and height range of the current scan, used for ores that are seen but were not predicted. */
+    private Set<OreKind> selectedKinds = EnumSet.noneOf(OreKind.class);
+    private int scanMinY, scanMaxY;
     private final List<PredictedOre> renderList = new ArrayList<>();
 
     private BaritoneControl baritone;
@@ -588,6 +598,7 @@ public class SeedMiner extends Module {
 
         if (++verifyTimer >= 10) {
             verifyTimer = 0;
+            if (mineSeenOres.get()) addSeenOres();
             verifyLoaded();
             updateRenderList();
         }
@@ -681,6 +692,9 @@ public class SeedMiner extends Module {
 
             ScanParams params = new ScanParams(seed.seed(), seed.version(), cubiomesDimension, seed.generatorFlags(),
                 kinds, Math.min(minY.get(), maxY.get()), Math.max(minY.get(), maxY.get()), oreVeins.get());
+            selectedKinds = kinds;
+            scanMinY = params.minY();
+            scanMaxY = params.maxY();
 
             if (scanner.setParams(params)) {
                 ores.clear();
@@ -733,6 +747,29 @@ public class SeedMiner extends Module {
                 seenOre.remove(ore.pos());
                 finished.add(ore.pos());
             }
+        }
+    }
+
+    /** Radius (blocks) around the player in which real ore blocks are added as targets. */
+    private static final int SEEN_ORE_RADIUS = 5;
+
+    /**
+     * Adds ore blocks of the selected kinds near the player that the prediction missed. Without anti-xray the client
+     * knows every block, with anti-xray only exposed ones, which are exactly the ones left next to the tunnel.
+     */
+    private void addSeenOres() {
+        if (selectedKinds.isEmpty()) return;
+
+        BlockPos center = mc.player.getBlockPos();
+        for (BlockPos pos : BlockPos.iterate(center.add(-SEEN_ORE_RADIUS, -SEEN_ORE_RADIUS, -SEEN_ORE_RADIUS), center.add(SEEN_ORE_RADIUS, SEEN_ORE_RADIUS, SEEN_ORE_RADIUS))) {
+            if (pos.getY() < scanMinY || pos.getY() > scanMaxY || ores.containsKey(pos) || finished.contains(pos)) continue;
+
+            OreKind kind = OreKind.of(mc.world.getBlockState(pos).getBlock());
+            if (kind == null || !selectedKinds.contains(kind)) continue;
+
+            BlockPos immutable = pos.toImmutable();
+            ores.put(immutable, new PredictedOre(immutable, kind));
+            seenOre.add(immutable);
         }
     }
 
@@ -1053,6 +1090,11 @@ public class SeedMiner extends Module {
             if (horizontalSq > maxDistSq) continue;
 
             double cost = Math.sqrt(horizontalSq) + Math.abs(dy) * verticalCost.get();
+
+            // Finish the ores you can already see right next to you before walking off, otherwise a vein can be
+            // left half mined and its rest ends up out of range later
+            if (seenOre.contains(pos) && horizontalSq + dy * dy <= SEEN_ORE_RADIUS * SEEN_ORE_RADIUS) cost -= 1000;
+
             if (cost < bestCost) {
                 bestCost = cost;
                 best = ore;
