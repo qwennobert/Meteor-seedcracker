@@ -56,4 +56,23 @@
 
     Goes well with the "Low profile" preset (see Presets).
 
+[ ] Auto-craft to blocks when the inventory is (almost) full
+    Compress mined items into blocks to free inventory space.
+
+    Implementation:
+    - New option, e.g. "compress-ores", with a trigger like "only X free
+      slots left" and a list of items to compress (adjustable in the GUI).
+    - 2x2 recipes (nether quartz -> quartz block) work in the inventory
+      crafting grid.
+    - 3x3 recipes (coal, redstone, lapis, iron, gold, copper, diamond,
+      emerald, raw ore blocks) need a crafting table: pause the module and
+      Baritone, place a carried crafting table, open it, fill the grid,
+      take the result, mine the table again, continue.
+    - Most useful for coal, redstone and lapis (many items per ore).
+
+    Note: the inventory mostly fills up with stone (cobblestone, deepslate,
+    tuff, granite, gravel, ...). Meteor's Inventory Tweaks module already
+    handles that with "auto-drop-items" (keep some cobblestone for Baritone
+    via "auto-drop-only-full-stacks").
+
 ===============================================================================
