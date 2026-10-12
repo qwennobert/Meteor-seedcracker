@@ -34,6 +34,7 @@ import meteordevelopment.meteorclient.settings.StringSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
+import meteordevelopment.meteorclient.utils.player.Rotations;
 import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
@@ -50,6 +51,11 @@ import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 
 import java.util.ArrayDeque;
@@ -841,6 +847,8 @@ public class SeedMiner extends Module {
     }
 
     private void mine() {
+        BlockHitResult directHit = null;
+
         if (target != null) {
             BlockPos pos = target.pos();
             boolean loaded = isLoaded(pos);
@@ -858,6 +866,17 @@ public class SeedMiner extends Module {
                 if (gone && seenOre.contains(pos)) countMined();
                 else invalid++;
                 finishTarget();
+            }
+            else if (loaded && (directHit = findReachableFace(pos)) != null) {
+                // In reach and visible: break it from here. Baritone's goal is to stand inside the ore, which can be
+                // impossible (e.g. ore right above your head and no blocks to pillar up with).
+                if (baritone.isWorking()) baritone.stop();
+                breakDirectly(directHit);
+                if (++targetTicks > targetTimeout.get() * 20) {
+                    warning("Could not mine ore at %s in time, skipping.", pos.toShortString());
+                    skipped++;
+                    finishTarget();
+                }
             }
             else if (baritone.wasHijacked()) {
                 warning("Baritone was given another goal, pausing. Re-enable the module to continue.");
@@ -939,7 +958,8 @@ public class SeedMiner extends Module {
             baritone.mine(target.pos());
         }
 
-        status = "Mining " + target.kind().name().toLowerCase().replace('_', ' ') + " at " + target.pos().toShortString();
+        status = "Mining " + target.kind().name().toLowerCase().replace('_', ' ') + " at " + target.pos().toShortString()
+            + (directHit != null ? " (in reach)" : "");
     }
 
     // Drop collection
@@ -1101,6 +1121,43 @@ public class SeedMiner extends Module {
         purgeMinedTimes(System.currentTimeMillis());
         int limit = maxOresPerMinute.get();
         return "Last minute: " + minedTimes.size() + (limit > 0 ? "/" + limit : "") + " ores";
+    }
+
+    // Breaking ores in reach
+
+    /** Returns where a ray from the eyes first hits the block, if it is in reach and not hidden behind other blocks. */
+    private BlockHitResult findReachableFace(BlockPos pos) {
+        Vec3d eyes = mc.player.getEyePos();
+        double reach = mc.player.getBlockInteractionRange() - 0.25;
+        Vec3d center = Vec3d.ofCenter(pos);
+        if (eyes.squaredDistanceTo(center) > (reach + 0.9) * (reach + 0.9)) return null;
+
+        // The center first, then the middle of each face
+        Vec3d[] points = new Vec3d[7];
+        points[0] = center;
+        int i = 1;
+        for (Direction direction : Direction.values()) {
+            points[i++] = center.add(direction.getOffsetX() * 0.49, direction.getOffsetY() * 0.49, direction.getOffsetZ() * 0.49);
+        }
+
+        for (Vec3d point : points) {
+            if (eyes.squaredDistanceTo(point) > reach * reach) continue;
+
+            BlockHitResult hit = mc.world.raycast(new RaycastContext(eyes, point, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, mc.player));
+            if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos)) return hit;
+        }
+
+        return null;
+    }
+
+    /** Looks at the block and keeps mining it, like holding the attack key. */
+    private void breakDirectly(BlockHitResult hit) {
+        mc.player.setYaw((float) Rotations.getYaw(hit.getPos()));
+        mc.player.setPitch((float) Rotations.getPitch(hit.getPos()));
+
+        if (mc.interactionManager.updateBlockBreakingProgress(hit.getBlockPos(), hit.getSide())) {
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
     }
 
     private PredictedOre nextTarget() {
