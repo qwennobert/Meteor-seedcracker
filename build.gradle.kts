@@ -4,7 +4,9 @@ plugins {
 
 base {
     archivesName = properties["archives_base_name"] as String
-    version = libs.versions.mod.version.get()
+    // Every GitHub Actions build gets its own version (and jar name), e.g. 0.2.0+build.12
+    version = libs.versions.mod.version.get() +
+        (providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.let { "+build.$it" } ?: "")
     group = properties["maven_group"] as String
 }
 

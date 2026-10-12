@@ -1,5 +1,6 @@
 [versions]
-mod-version = "0.1.0"
+# Base version. CI builds append "+build.<run number>", so every build has its own version.
+mod-version = "0.2.0"
 
 # Java: SeedMapper for 1.21.11 is compiled for Java 23 and uses the Foreign Function & Memory API
 jdk = "23"

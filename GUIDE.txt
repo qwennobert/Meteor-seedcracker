@@ -24,7 +24,7 @@ Alles in den "mods"-Ordner deiner Minecraft-1.21.11-Instanz legen:
   [x] Baritone, Meteor-Build 1.21.11   -> https://maven.meteordev.org
                                           (ohne Baritone werden Erze nur
                                            markiert, nicht abgebaut)
-  [x] seed-miner-0.1.0.jar             -> dieses Addon (siehe Abschnitt 2)
+  [x] seed-miner-<version>.jar         -> dieses Addon (siehe Abschnitt 2)
 
 WICHTIG - JAVA 23:
   SeedMapper braucht für 1.21.11 Java 23 oder neuer. Mit Java 21 startet das
@@ -41,7 +41,10 @@ WICHTIG - JAVA 23:
  2. WO BEKOMME ICH DIE JAR?
 -------------------------------------------------------------------------------
 
-  a) GitHub: Repo -> "Releases" -> "Dev Build" -> seed-miner-*.jar
+  a) GitHub: Repo -> "Releases" -> oberstes Release ("Latest")
+     -> seed-miner-<version>.jar
+     Jeder Build hat eine eigene Version, z. B. 0.2.0+build.12. Alte Jar
+     aus dem mods-Ordner löschen, bevor du die neue reinlegst.
      (wird bei jedem Push automatisch neu gebaut)
 
   b) Selbst bauen:
