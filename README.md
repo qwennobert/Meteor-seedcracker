@@ -59,7 +59,7 @@ dauerhaft an, weil es Baritone einfach das nächste Erz gibt.
 | | `follow-player` | Neue Chunks scannen, während du dich bewegst |
 | | `verify` | `Off`, `SkipAir` (Standard), `Exact` (nur Blöcke behalten, die wirklich das Erz sind; funktioniert nicht mit Anti-Xray) |
 | Mining | `auto-mine` | Mit Baritone abbauen oder nur markieren |
-| | `max-distance` | Maximale Entfernung zum Erz |
+| | `max-distance` | Maximale horizontale Entfernung zum Erz |
 | | `vertical-cost` | Wie stark Höhenunterschiede bei der Wahl des nächsten Erzes zählen |
 | | `target-timeout` | Erz nach N Sekunden überspringen |
 | | `path-retries` | Neue Versuche, wenn Baritone keinen Weg findet |

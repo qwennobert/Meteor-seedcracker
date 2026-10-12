@@ -159,7 +159,7 @@ public class SeedMiner extends Module {
 
     private final Setting<Integer> maxDistance = sgMining.add(new IntSetting.Builder()
         .name("max-distance")
-        .description("Ignore ores further away than this (blocks).")
+        .description("Ignore ores that are further away than this horizontally (blocks).")
         .defaultValue(96)
         .range(8, 512)
         .sliderRange(16, 256)
@@ -590,9 +590,11 @@ public class SeedMiner extends Module {
         for (PredictedOre ore : ores.values()) {
             BlockPos pos = ore.pos();
             double dx = pos.getX() + 0.5 - px, dy = pos.getY() - py, dz = pos.getZ() + 0.5 - pz;
-            if (dx * dx + dy * dy + dz * dz > maxDistSq) continue;
+            // Horizontal only, ores are often far below the player (e.g. diamonds when standing on a mountain)
+            double horizontalSq = dx * dx + dz * dz;
+            if (horizontalSq > maxDistSq) continue;
 
-            double cost = Math.sqrt(dx * dx + dz * dz) + Math.abs(dy) * verticalCost.get();
+            double cost = Math.sqrt(horizontalSq) + Math.abs(dy) * verticalCost.get();
             if (cost < bestCost) {
                 bestCost = cost;
                 best = ore;
