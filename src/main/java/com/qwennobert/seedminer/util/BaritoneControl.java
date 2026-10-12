@@ -4,7 +4,7 @@ import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
 import baritone.api.Settings;
 import baritone.api.pathing.goals.Goal;
-import baritone.api.pathing.goals.GoalNear;
+import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.pathing.goals.GoalTwoBlocks;
 import baritone.api.process.ICustomGoalProcess;
 import net.minecraft.util.math.BlockPos;
@@ -30,13 +30,13 @@ public final class BaritoneControl {
         baritone().getCustomGoalProcess().setGoalAndPath(goal);
     }
 
-    /** Walks to within one block of the position, e.g. to pick up an item lying there. */
-    public void walkNear(BlockPos pos) {
-        goal = new GoalNear(pos, 1);
+    /** Walks into the block, e.g. to pick up an item lying there. Standing next to it can be just out of pickup range. */
+    public void walkTo(BlockPos pos) {
+        goal = new GoalBlock(pos);
         baritone().getCustomGoalProcess().setGoalAndPath(goal);
     }
 
-    /** True while Baritone is still working on the goal that was set by {@link #mine(BlockPos)} or {@link #walkNear(BlockPos)}. */
+    /** True while Baritone is still working on the goal that was set by {@link #mine(BlockPos)} or {@link #walkTo(BlockPos)}. */
     public boolean isWorking() {
         if (goal == null) return false;
 

@@ -18,7 +18,8 @@ A detailed step-by-step guide is in [GUIDE.txt](GUIDE.txt).
    to compute the ore positions of all chunks around you on a background thread.
 3. **Verification**: In loaded chunks, predicted positions that are actually air (caves, already mined) are dropped.
 4. **Mining**: Baritone walks or digs to the nearest ore (height differences weigh more) and mines it, then moves on
-   to the next one. New chunks are scanned while you move.
+   to the next one. New chunks are scanned while you move. Ores within reach are mined right from where you stand;
+   if other blocks hide them, those are mined first (unless water, lava, sand or gravel would come in).
 
 ## Installation
 
@@ -102,7 +103,8 @@ because the module simply gives Baritone the next ore.
   (especially diamonds next to caves, and coal, copper and emerald). In loaded chunks `verify` corrects this.
   Wrong targets are noticed once Baritone gets there and are skipped. They count as *invalid*, not as mined.
 - If the server runs a different version than 1.21.11 (e.g. via ViaFabricPlus), the prediction won't match.
-- Baritone mines by pathing: it digs its way to the ore and breaks it as part of the path.
+- Baritone mines by pathing: it digs its way to the ore and breaks it as part of the path. To get up to an ore it may
+  need blocks to pillar with, so carry some cobblestone. Ores within reach don't need that.
 
 ## Building
 

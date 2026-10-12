@@ -164,6 +164,12 @@ Otherwise the predictions are wrong.
   disable-when-done   Disable when no ores are left. Otherwise
                       it waits for new chunks.                   Default: off
 
+  Ores within reach (about 4 blocks) are mined right from where you stand,
+  without Baritone (status "... (in reach)"). If other blocks hide the ore,
+  those are mined first (status "... (uncovering)"), but never the block
+  you stand on, and never a block next to water or lava or under sand or
+  gravel. Then Baritone takes over as usual.
+
 [Auto Tool] - which tool is used
   The module picks the tool for every block Baritone breaks (Baritone's own
   tool switching is turned off while the module runs). Tools must be in the
@@ -263,8 +269,8 @@ Chat commands (Meteor's prefix is the dot):
     Bring fire resistance!
   - Bring a good pickaxe (Efficiency, Unbreaking, Mending) and food.
     Baritone does not eat on its own.
-  - A few cobblestone blocks in the inventory help Baritone cover lava and
-    build bridges.
+  - A few cobblestone blocks in the inventory help Baritone cover lava,
+    build bridges and pillar up to ores above you.
   - Lots of failed targets? Lower "chunk-radius". The module then stays
     closer to loaded chunks, where "verify" filters out wrong predictions.
 

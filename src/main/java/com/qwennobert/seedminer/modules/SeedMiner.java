@@ -41,6 +41,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -49,6 +50,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -534,6 +536,9 @@ public class SeedMiner extends Module {
     private int collectTicks, collectRetries;
     /** Drops that could not be reached, by entity id. */
     private final Set<Integer> ignoredDrops = new HashSet<>();
+    /** Ticks left to wait for the drops of the ore that was just mined, the server sends them a moment later. */
+    private int dropWaitTicks;
+    private static final int DROP_WAIT_TICKS = 20;
     /** The target ore is done, but the follow-up (detour, pause) waits until its drops are collected. */
     private boolean targetDonePending;
 
@@ -863,13 +868,16 @@ public class SeedMiner extends Module {
             if (gone || wrong) {
                 // Only an ore that was really there counts as mined. Otherwise the prediction was wrong
                 // (stone, cave, already mined), even if Baritone had to break the block to get there.
-                if (gone && seenOre.contains(pos)) countMined();
+                if (gone && seenOre.contains(pos)) {
+                    countMined();
+                    dropWaitTicks = DROP_WAIT_TICKS;
+                }
                 else invalid++;
                 finishTarget();
             }
-            else if (loaded && (directHit = findReachableFace(pos)) != null) {
-                // In reach and visible: break it from here. Baritone's goal is to stand inside the ore, which can be
-                // impossible (e.g. ore right above your head and no blocks to pillar up with).
+            else if (loaded && ((directHit = findReachableFace(pos)) != null || (directHit = findBlockInTheWay(pos)) != null)) {
+                // In reach: break it from here, or first the block that hides it. Baritone's goal is to stand inside
+                // the ore, which can be impossible (e.g. ore above your head and no blocks to pillar up with).
                 if (baritone.isWorking()) baritone.stop();
                 breakDirectly(directHit);
                 if (++targetTicks > targetTimeout.get() * 20) {
@@ -899,7 +907,10 @@ public class SeedMiner extends Module {
                 }
             }
 
-            if (target == null) targetDonePending = true;
+            if (target == null) {
+                targetDonePending = true;
+                directHit = null;
+            }
         }
 
         // Pick up the drops before moving on, Baritone would otherwise walk away during the pickup delay
@@ -912,7 +923,15 @@ public class SeedMiner extends Module {
                     toggle();
                     return;
                 }
+                dropWaitTicks = 0;
                 updateCollect();
+                status = "Collecting drops";
+                return;
+            }
+            // The block is gone on your side right away, its drops only show up once the server has broken it too.
+            // When you stand inside the ore that doesn't matter, but not when it was broken from a few blocks away.
+            if (dropWaitTicks > 0) {
+                dropWaitTicks--;
                 status = "Collecting drops";
                 return;
             }
@@ -959,7 +978,7 @@ public class SeedMiner extends Module {
         }
 
         status = "Mining " + target.kind().name().toLowerCase().replace('_', ' ') + " at " + target.pos().toShortString()
-            + (directHit != null ? " (in reach)" : "");
+            + (directHit == null ? "" : directHit.getBlockPos().equals(target.pos()) ? " (in reach)" : " (uncovering)");
     }
 
     // Drop collection
@@ -984,7 +1003,7 @@ public class SeedMiner extends Module {
             collectItem = found;
             collectTicks = 0;
             collectRetries = 0;
-            baritone.walkNear(found.getBlockPos());
+            baritone.walkTo(found.getBlockPos());
         }
     }
 
@@ -1003,11 +1022,12 @@ public class SeedMiner extends Module {
         }
 
         if (!baritone.isWorking()) {
-            // Next to it: just wait, fresh drops can only be picked up after a short delay
-            if (item.squaredDistanceTo(mc.player) <= 2.25) return;
+            // In pickup range (a bit less than the server's, to be sure): just wait, fresh drops can only be picked up
+            // after a short delay
+            if (mc.player.getBoundingBox().expand(0.8, 0.4, 0.8).intersects(item.getBoundingBox())) return;
 
             // The item moved (fell down) or Baritone gave up, try again
-            if (collectRetries++ < 2) baritone.walkNear(item.getBlockPos());
+            if (collectRetries++ < 2) baritone.walkTo(item.getBlockPos());
             else giveUpDrop();
         }
     }
@@ -1127,27 +1147,60 @@ public class SeedMiner extends Module {
 
     /** Returns where a ray from the eyes first hits the block, if it is in reach and not hidden behind other blocks. */
     private BlockHitResult findReachableFace(BlockPos pos) {
+        for (BlockHitResult hit : raycastsInReach(pos)) {
+            if (hit.getBlockPos().equals(pos)) return hit;
+        }
+        return null;
+    }
+
+    /**
+     * The block is in reach, but other blocks are in the way: returns the first of them if it is safe to break.
+     * Mining it uncovers the ore, like a player would do instead of walking around.
+     */
+    private BlockHitResult findBlockInTheWay(BlockPos pos) {
+        for (BlockHitResult hit : raycastsInReach(pos)) {
+            if (!hit.getBlockPos().equals(pos) && isSafeToBreak(hit.getBlockPos())) return hit;
+        }
+        return null;
+    }
+
+    /** Rays from the eyes to the center and to the middle of each face of the block, as far as they are in reach. */
+    private List<BlockHitResult> raycastsInReach(BlockPos pos) {
+        List<BlockHitResult> hits = new ArrayList<>();
         Vec3d eyes = mc.player.getEyePos();
         double reach = mc.player.getBlockInteractionRange() - 0.25;
         Vec3d center = Vec3d.ofCenter(pos);
-        if (eyes.squaredDistanceTo(center) > (reach + 0.9) * (reach + 0.9)) return null;
+        if (eyes.squaredDistanceTo(center) > (reach + 0.9) * (reach + 0.9)) return hits;
 
-        // The center first, then the middle of each face
-        Vec3d[] points = new Vec3d[7];
-        points[0] = center;
-        int i = 1;
+        List<Vec3d> points = new ArrayList<>();
+        points.add(center);
         for (Direction direction : Direction.values()) {
-            points[i++] = center.add(direction.getOffsetX() * 0.49, direction.getOffsetY() * 0.49, direction.getOffsetZ() * 0.49);
+            points.add(center.add(direction.getOffsetX() * 0.49, direction.getOffsetY() * 0.49, direction.getOffsetZ() * 0.49));
         }
 
         for (Vec3d point : points) {
             if (eyes.squaredDistanceTo(point) > reach * reach) continue;
 
             BlockHitResult hit = mc.world.raycast(new RaycastContext(eyes, point, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, mc.player));
-            if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos)) return hit;
+            if (hit.getType() == HitResult.Type.BLOCK) hits.add(hit);
         }
 
-        return null;
+        return hits;
+    }
+
+    private boolean isSafeToBreak(BlockPos pos) {
+        BlockState state = mc.world.getBlockState(pos);
+        if (state.isAir() || isUnbreakable(state, pos) || !state.getFluidState().isEmpty() || mc.world.getBlockEntity(pos) != null) return false;
+
+        // Not the floor you are standing on
+        Box box = mc.player.getBoundingBox();
+        if (new Box(box.minX, box.minY - 0.5, box.minZ, box.maxX, box.minY, box.maxZ).intersects(new Box(pos))) return false;
+
+        // No water or lava flowing in, no sand or gravel coming down
+        for (Direction direction : Direction.values()) {
+            if (!mc.world.getFluidState(pos.offset(direction)).isEmpty()) return false;
+        }
+        return !(mc.world.getBlockState(pos.up()).getBlock() instanceof FallingBlock);
     }
 
     /** Looks at the block and keeps mining it, like holding the attack key. */
@@ -1202,6 +1255,7 @@ public class SeedMiner extends Module {
         target = null;
         detourPos = null;
         collectItem = null;
+        dropWaitTicks = 0;
         targetDonePending = false;
     }
 
