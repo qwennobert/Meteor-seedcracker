@@ -719,7 +719,8 @@ public class SeedMiner extends Module {
                 drop = true;
             }
             else {
-                drop = switch (mode) {
+                // The prediction doesn't know bedrock, positions near the bottom of the world can be unbreakable
+                drop = isUnbreakable(state, ore.pos()) || switch (mode) {
                     case Off -> false;
                     case SkipAir -> gone;
                     case Exact -> true;
@@ -737,6 +738,10 @@ public class SeedMiner extends Module {
 
     private static boolean isGone(BlockState state) {
         return state.isAir() || !state.getFluidState().isEmpty();
+    }
+
+    private boolean isUnbreakable(BlockState state, BlockPos pos) {
+        return state.getHardness(mc.world, pos) < 0;
     }
 
     private boolean safetyCheck() {
@@ -781,7 +786,7 @@ public class SeedMiner extends Module {
             if (loaded && target.kind().matches(state.getBlock())) seenOre.add(pos);
 
             boolean gone = loaded && isGone(state);
-            boolean wrong = loaded && !gone && verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock());
+            boolean wrong = loaded && !gone && ((verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock())) || isUnbreakable(state, pos));
 
             if (gone || wrong) {
                 // Only an ore that was really there counts as mined. Otherwise the prediction was wrong
