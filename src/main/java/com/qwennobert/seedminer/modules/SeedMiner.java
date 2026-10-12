@@ -11,6 +11,7 @@ import com.qwennobert.seedminer.seed.SeedSource;
 import com.qwennobert.seedminer.util.BaritoneControl;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
+import meteordevelopment.meteorclient.events.world.BlockUpdateEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiTheme;
 import meteordevelopment.meteorclient.gui.widgets.WWidget;
@@ -111,6 +112,7 @@ public class SeedMiner extends Module {
         .defaultValue(4)
         .range(0, 16)
         .sliderRange(0, 12)
+        .onChanged(v -> lastScanCenter = null)
         .build()
     );
 
@@ -197,6 +199,7 @@ public class SeedMiner extends Module {
         .name("configure-baritone")
         .description("Sets Baritone's allowBreak to true while active (required) and the options below. Restored when disabled.")
         .defaultValue(true)
+        .onChanged(v -> applyBaritoneSettings())
         .build()
     );
 
@@ -205,6 +208,7 @@ public class SeedMiner extends Module {
         .description("Allow Baritone to place blocks (bridging, pillaring, blocking lava).")
         .defaultValue(true)
         .visible(configureBaritone::get)
+        .onChanged(v -> applyBaritoneSettings())
         .build()
     );
 
@@ -213,6 +217,7 @@ public class SeedMiner extends Module {
         .description("Allow Baritone to jump over gaps.")
         .defaultValue(false)
         .visible(configureBaritone::get)
+        .onChanged(v -> applyBaritoneSettings())
         .build()
     );
 
@@ -328,6 +333,8 @@ public class SeedMiner extends Module {
     private final Map<BlockPos, PredictedOre> ores = new HashMap<>();
     /** Positions that were mined, skipped or found invalid. Kept until the seed/world changes. */
     private final Set<BlockPos> finished = new HashSet<>();
+    /** Predicted positions where the real ore block was seen, so that turning into air means it was mined. */
+    private final Set<BlockPos> seenOre = new HashSet<>();
     private final List<PredictedOre> renderList = new ArrayList<>();
 
     private BaritoneControl baritone;
@@ -339,8 +346,6 @@ public class SeedMiner extends Module {
 
     private PredictedOre target;
     private int targetTicks, targetRetries, verifyTimer;
-    /** Whether the target block was seen as a solid block, so that it turning into air means we mined it. */
-    private boolean targetSeenSolid;
     private int mined, skipped, invalid;
     private boolean warnedNoSeed;
     private String status = "Idle";
@@ -355,10 +360,8 @@ public class SeedMiner extends Module {
             warning("Baritone (Meteor build) is not installed, ores will only be highlighted.");
         }
 
-        if (BaritoneUtils.IS_AVAILABLE) {
-            if (baritone == null) baritone = new BaritoneControl();
-            if (configureBaritone.get()) baritone.configure(allowPlace.get(), allowParkour.get());
-        }
+        if (BaritoneUtils.IS_AVAILABLE && baritone == null) baritone = new BaritoneControl();
+        applyBaritoneSettings();
 
         warnedNoSeed = false;
         lastScanCenter = null;
@@ -419,6 +422,20 @@ public class SeedMiner extends Module {
         mine();
     }
 
+    /**
+     * Notices ores the moment the client learns about them. With anti-xray an ore only becomes visible once it is
+     * exposed, and a fast pickaxe breaks it right after, so the periodic check alone could miss it.
+     */
+    @EventHandler
+    private void onBlockUpdate(BlockUpdateEvent event) {
+        PredictedOre ore = ores.get(event.pos);
+        if (ore == null) return;
+
+        if (ore.kind().matches(event.oldState.getBlock()) || ore.kind().matches(event.newState.getBlock())) {
+            seenOre.add(ore.pos());
+        }
+    }
+
     /** Resolves the seed and the scan parameters. Returns false if there is nothing to do yet. */
     private boolean updateParams() {
         // Asking SeedMapper is not free, once per second is plenty
@@ -465,6 +482,7 @@ public class SeedMiner extends Module {
             if (scanner.setParams(params)) {
                 ores.clear();
                 finished.clear();
+                seenOre.clear();
                 renderList.clear();
                 clearTarget();
                 lastScanCenter = null;
@@ -474,7 +492,10 @@ public class SeedMiner extends Module {
         return true;
     }
 
-    /** Drops predictions that don't match the real world in loaded chunks. */
+    /**
+     * Compares predictions with the real world in loaded chunks. Ores that were seen and are gone now were mined
+     * (e.g. by Baritone on the way to another ore), predictions that don't match are dropped depending on the verify mode.
+     */
     private void verifyLoaded() {
         VerifyMode mode = verifyMode.get();
 
@@ -483,18 +504,36 @@ public class SeedMiner extends Module {
             if (ore == target || !isLoaded(ore.pos())) continue;
 
             BlockState state = mc.world.getBlockState(ore.pos());
-            boolean valid = switch (mode) {
-                case Off -> true;
-                case SkipAir -> !state.isAir() && state.getFluidState().isEmpty();
-                case Exact -> ore.kind().matches(state.getBlock());
-            };
+            if (ore.kind().matches(state.getBlock())) {
+                seenOre.add(ore.pos());
+                continue;
+            }
 
-            if (!valid) {
+            boolean gone = isGone(state);
+            boolean drop;
+            if (gone && seenOre.contains(ore.pos())) {
+                mined++;
+                drop = true;
+            }
+            else {
+                drop = switch (mode) {
+                    case Off -> false;
+                    case SkipAir -> gone;
+                    case Exact -> true;
+                };
+                if (drop) invalid++;
+            }
+
+            if (drop) {
                 it.remove();
+                seenOre.remove(ore.pos());
                 finished.add(ore.pos());
-                invalid++;
             }
         }
+    }
+
+    private static boolean isGone(BlockState state) {
+        return state.isAir() || !state.getFluidState().isEmpty();
     }
 
     private boolean safetyCheck() {
@@ -534,13 +573,15 @@ public class SeedMiner extends Module {
             boolean loaded = isLoaded(pos);
             BlockState state = loaded ? mc.world.getBlockState(pos) : null;
 
-            boolean gone = loaded && (state.isAir() || !state.getFluidState().isEmpty());
-            boolean wrong = loaded && verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock());
-            if (loaded && !gone && !wrong) targetSeenSolid = true;
+            if (loaded && target.kind().matches(state.getBlock())) seenOre.add(pos);
+
+            boolean gone = loaded && isGone(state);
+            boolean wrong = loaded && !gone && verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock());
 
             if (gone || wrong) {
-                // Air after we saw the block means we mined it, otherwise the prediction was wrong (cave, already mined)
-                if (gone && targetSeenSolid) mined++;
+                // Only an ore that was really there counts as mined. Otherwise the prediction was wrong
+                // (stone, cave, already mined), even if Baritone had to break the block to get there.
+                if (gone && seenOre.contains(pos)) mined++;
                 else invalid++;
                 finishTarget();
             }
@@ -581,7 +622,6 @@ public class SeedMiner extends Module {
 
             targetTicks = 0;
             targetRetries = 0;
-            targetSeenSolid = false;
             baritone.mine(target.pos());
         }
 
@@ -614,6 +654,7 @@ public class SeedMiner extends Module {
     private void finishTarget() {
         if (target != null) {
             ores.remove(target.pos());
+            seenOre.remove(target.pos());
             finished.add(target.pos());
         }
         target = null;
@@ -710,6 +751,7 @@ public class SeedMiner extends Module {
     public void rescan() {
         ores.clear();
         finished.clear();
+        seenOre.clear();
         renderList.clear();
         clearTarget();
         scanner.reset();
@@ -736,6 +778,14 @@ public class SeedMiner extends Module {
 
     private void invalidate() {
         paramsDirty = true;
+    }
+
+    /** Applies or restores the Baritone settings, also when they are changed while the module is running. */
+    private void applyBaritoneSettings() {
+        if (baritone == null || !isActive()) return;
+
+        if (configureBaritone.get()) baritone.configure(allowPlace.get(), allowParkour.get());
+        else baritone.restore();
     }
 
     public String status() {
