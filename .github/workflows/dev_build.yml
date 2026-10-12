@@ -1,6 +1,10 @@
 name: Publish Development Build
 on: push
 
+permissions:
+  # Needed to create/update the "snapshot" release
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,6 +26,12 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: seed-miner
+          path: build/libs/
 
       - name: Release
         uses: softprops/action-gh-release@v2
