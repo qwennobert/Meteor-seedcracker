@@ -123,6 +123,12 @@ Otherwise the predictions are wrong.
   min-y / max-y       Height range, e.g. -64 to 16 for
                       diamonds                                   Default: -64 / 320
   follow-player       Keep scanning new chunks while you move    Default: on
+  server-anti-xray    Many servers (e.g. Paper) hide ores with
+                      anti-xray: hidden blocks are shown as fake
+                      ores or fake stone. With this on, only
+                      blocks that touch air are believed, which
+                      anti-xray always shows truthfully. Turn it
+                      off only on a server without anti-xray.    Default: on
   mine-seen-ores      Also mine ores of the selected types that
                       are visible within 5 blocks of you, even if
                       the prediction missed them. Ores you can
@@ -131,8 +137,9 @@ Otherwise the predictions are wrong.
   verify              Off     = take every prediction
                       SkipAir = drop positions that are actually
                                 air (recommended)
-                      Exact   = only blocks that really are the
-                                ore (does NOT work with anti-xray)
+                      Exact   = also drop positions that are not
+                                the ore (with server-anti-xray only
+                                blocks that touch air are checked)
                                                                  Default: SkipAir
 
 [Mining] - how ores are mined

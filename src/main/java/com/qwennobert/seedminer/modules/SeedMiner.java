@@ -49,6 +49,7 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 import java.util.ArrayDeque;
@@ -154,6 +155,13 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> serverAntiXray = sgTargets.add(new BoolSetting.Builder()
+        .name("server-anti-xray")
+        .description("The server may use anti-xray (e.g. Paper). Only blocks that touch air are trusted then, because hidden blocks can be fake ores or fake stone.")
+        .defaultValue(true)
+        .build()
+    );
+
     private final Setting<Boolean> mineSeenOres = sgTargets.add(new BoolSetting.Builder()
         .name("mine-seen-ores")
         .description("Also mine ores of the selected types that are visible near you, even if the prediction missed them.")
@@ -163,7 +171,7 @@ public class SeedMiner extends Module {
 
     private final Setting<VerifyMode> verifyMode = sgTargets.add(new EnumSetting.Builder<VerifyMode>()
         .name("verify")
-        .description("Check predictions against loaded chunks. SkipAir: drop positions that are air (caves, already mined). Exact: only keep positions that really contain the ore (does not work with anti-xray).")
+        .description("Check predictions against loaded chunks. SkipAir: drop positions that are air (caves, already mined). Exact: also drop positions that are not the ore (with server-anti-xray only for blocks that touch air).")
         .defaultValue(VerifyMode.SkipAir)
         .build()
     );
@@ -645,9 +653,11 @@ public class SeedMiner extends Module {
         PredictedOre ore = ores.get(event.pos);
         if (ore == null) return;
 
-        if (ore.kind().matches(event.oldState.getBlock()) || ore.kind().matches(event.newState.getBlock())) {
-            seenOre.add(ore.pos());
-        }
+        // An ore that is broken was real (you can only reach exposed blocks, and anti-xray shows those truthfully).
+        // An ore that appears is only trusted if it is exposed, anti-xray fills hidden blocks with fake ores.
+        boolean broken = isGone(event.newState) && ore.kind().matches(event.oldState.getBlock());
+        boolean appeared = ore.kind().matches(event.newState.getBlock()) && isTrusted(ore.pos());
+        if (broken || appeared) seenOre.add(ore.pos());
     }
 
     /** Resolves the seed and the scan parameters. Returns false if there is nothing to do yet. */
@@ -721,8 +731,9 @@ public class SeedMiner extends Module {
             if (ore == target || !isLoaded(ore.pos())) continue;
 
             BlockState state = mc.world.getBlockState(ore.pos());
+            boolean trusted = isTrusted(ore.pos());
             if (ore.kind().matches(state.getBlock())) {
-                seenOre.add(ore.pos());
+                if (trusted) seenOre.add(ore.pos());
                 continue;
             }
 
@@ -737,7 +748,7 @@ public class SeedMiner extends Module {
                 drop = isUnbreakable(state, ore.pos()) || switch (mode) {
                     case Off -> false;
                     case SkipAir -> gone;
-                    case Exact -> true;
+                    case Exact -> gone || trusted;
                 };
                 if (drop) invalid++;
             }
@@ -755,7 +766,8 @@ public class SeedMiner extends Module {
 
     /**
      * Adds ore blocks of the selected kinds near the player that the prediction missed. Without anti-xray the client
-     * knows every block, with anti-xray only exposed ones, which are exactly the ones left next to the tunnel.
+     * knows every block, with anti-xray only exposed ones (hidden ones may be fake), which are exactly the ones left
+     * next to the tunnel.
      */
     private void addSeenOres() {
         if (selectedKinds.isEmpty()) return;
@@ -765,12 +777,26 @@ public class SeedMiner extends Module {
             if (pos.getY() < scanMinY || pos.getY() > scanMaxY || ores.containsKey(pos) || finished.contains(pos)) continue;
 
             OreKind kind = OreKind.of(mc.world.getBlockState(pos).getBlock());
-            if (kind == null || !selectedKinds.contains(kind)) continue;
+            if (kind == null || !selectedKinds.contains(kind) || !isTrusted(pos)) continue;
 
             BlockPos immutable = pos.toImmutable();
             ores.put(immutable, new PredictedOre(immutable, kind));
             seenOre.add(immutable);
         }
+    }
+
+    /**
+     * Whether the block the client sees at this position can be believed. Anti-xray only hides blocks that don't
+     * touch air (or other see-through blocks) and shows exposed blocks as they really are.
+     */
+    private boolean isTrusted(BlockPos pos) {
+        if (!serverAntiXray.get()) return true;
+
+        BlockPos.Mutable neighbor = new BlockPos.Mutable();
+        for (Direction direction : Direction.values()) {
+            if (!mc.world.getBlockState(neighbor.set(pos, direction)).isOpaqueFullCube()) return true;
+        }
+        return false;
     }
 
     private static boolean isGone(BlockState state) {
@@ -820,10 +846,11 @@ public class SeedMiner extends Module {
             boolean loaded = isLoaded(pos);
             BlockState state = loaded ? mc.world.getBlockState(pos) : null;
 
-            if (loaded && target.kind().matches(state.getBlock())) seenOre.add(pos);
+            boolean trusted = loaded && isTrusted(pos);
+            if (trusted && target.kind().matches(state.getBlock())) seenOre.add(pos);
 
             boolean gone = loaded && isGone(state);
-            boolean wrong = loaded && !gone && ((verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock())) || isUnbreakable(state, pos));
+            boolean wrong = loaded && !gone && ((trusted && verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock())) || isUnbreakable(state, pos));
 
             if (gone || wrong) {
                 // Only an ore that was really there counts as mined. Otherwise the prediction was wrong
