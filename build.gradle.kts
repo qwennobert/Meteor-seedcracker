@@ -20,6 +20,28 @@ repositories {
     exclusiveContent {
         forRepository {
             maven {
+                name = "xpple"
+                url = uri("https://maven.xpple.dev/maven2")
+            }
+        }
+        filter {
+            includeGroup("dev.xpple")
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "babbaj"
+                url = uri("https://babbaj.github.io/maven")
+            }
+        }
+        filter {
+            includeGroup("dev.babbaj")
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
                 name = "Modrinth"
                 url = uri("https://api.modrinth.com/maven")
             }
@@ -51,10 +73,14 @@ dependencies {
 
     // Only for the "Minecraft Client" run configuration, not part of the published mod
     modLocalRuntime(libs.baritone)
+    localRuntime(libs.nether.pathfinder)
     modLocalRuntime(libs.seedmapper) {
         isTransitive = false
     }
     modLocalRuntime(libs.fabric.api)
+    modLocalRuntime(libs.betterconfig)
+    modLocalRuntime(libs.clientarguments)
+    modLocalRuntime(libs.simplewaypoints)
 
     compileOnly(stubs.output)
 }

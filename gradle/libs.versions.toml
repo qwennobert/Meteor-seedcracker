@@ -21,6 +21,12 @@ meteor = "1.21.11-SNAPSHOT"
 baritone = "1.21.11-SNAPSHOT"
 # SeedMapper (https://github.com/xpple/SeedMapper), last release for 1.21.11
 seedmapper = "2.21.2"
+# Libraries that SeedMapper bundles (jar-in-jar), needed separately for the dev run configuration
+betterconfig = "2.5.0"
+clientarguments = "1.11.6"
+simplewaypoints = "1.2.0"
+# Library that Baritone bundles (jar-in-jar), needed separately for the dev run configuration
+nether-pathfinder = "1.4.1"
 
 [libraries]
 # Fabric base
@@ -35,6 +41,10 @@ meteor-client = { module = "meteordevelopment:meteor-client", version.ref = "met
 # Mods
 baritone = { module = "meteordevelopment:baritone", version.ref = "baritone" }
 seedmapper = { module = "maven.modrinth:seedmapper", version.ref = "seedmapper" }
+betterconfig = { module = "dev.xpple:betterconfig-fabric", version.ref = "betterconfig" }
+clientarguments = { module = "dev.xpple:clientarguments", version.ref = "clientarguments" }
+simplewaypoints = { module = "dev.xpple:simplewaypoints", version.ref = "simplewaypoints" }
+nether-pathfinder = { module = "dev.babbaj:nether-pathfinder", version.ref = "nether-pathfinder" }
 
 [plugins]
 fabric-loom = { id = "fabric-loom", version.ref = "loom" }
