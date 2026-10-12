@@ -17,8 +17,8 @@ A detailed step-by-step guide is in [GUIDE.txt](GUIDE.txt).
 2. **Prediction**: The addon uses the cubiomes library bundled with SeedMapper (same ore logic as `/sm:highlight block`)
    to compute the ore positions of all chunks around you on a background thread.
 3. **Verification**: In loaded chunks, predicted positions that are actually air (caves, already mined) are dropped.
-4. **Mining**: Baritone walks or digs to the nearest ore (height differences weigh more) and mines it, then moves on
-   to the next one. New chunks are scanned while you move. Ores within reach are mined right from where you stand;
+4. **Mining**: Baritone walks or digs to the next ore and mines it, then moves on to the next one. Groups of ores
+   (veins) are preferred over single ores, height differences weigh more. New chunks are scanned while you move. Ores within reach are mined right from where you stand;
    if other blocks hide them, those are mined first (unless water, lava, sand or gravel would come in).
 
 ## Installation
@@ -68,6 +68,7 @@ because the module simply gives Baritone the next ore.
 | Mining | `auto-mine` | Mine with Baritone, or only highlight |
 | | `max-distance` | Maximum horizontal distance to an ore |
 | | `vertical-cost` | How much height differences count when picking the next ore |
+| | `vein-priority` | How much groups of ores are preferred over single ores (0 = always the nearest ore, 1 = least walking per ore) |
 | | `target-timeout` | Skip an ore after N seconds |
 | | `path-retries` | Retries when Baritone can't find a path |
 | | `collect-drops` / `collect-radius` / `collect-timeout` | Walk to the drops of mined ores before moving on, so none are left behind |

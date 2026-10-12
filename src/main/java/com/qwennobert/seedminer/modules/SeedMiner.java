@@ -211,6 +211,15 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    private final Setting<Double> veinPriority = sgMining.add(new DoubleSetting.Builder()
+        .name("vein-priority")
+        .description("How much groups of ores are preferred over single ores. 0 = always the nearest ore, 1 = the group with the least walking per ore.")
+        .defaultValue(1)
+        .range(0, 3)
+        .sliderRange(0, 2)
+        .build()
+    );
+
     private final Setting<Integer> targetTimeout = sgMining.add(new IntSetting.Builder()
         .name("target-timeout")
         .description("Skip an ore if it wasn't mined after this many seconds.")
@@ -1219,6 +1228,8 @@ public class SeedMiner extends Module {
         double maxDistSq = maxDistance.get() * maxDistance.get();
 
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
+        Map<BlockPos, Integer> veinSizes = veinPriority.get() > 0 ? veinSizes(maxDistSq) : null;
+
         for (PredictedOre ore : ores.values()) {
             BlockPos pos = ore.pos();
             double dx = pos.getX() + 0.5 - px, dy = pos.getY() - py, dz = pos.getZ() + 0.5 - pz;
@@ -1227,6 +1238,9 @@ public class SeedMiner extends Module {
             if (horizontalSq > maxDistSq) continue;
 
             double cost = Math.sqrt(horizontalSq) + Math.abs(dy) * verticalCost.get();
+
+            // Prefer groups of ores over single ones: with vein-priority 1 this is the walking distance per ore
+            if (veinSizes != null) cost /= Math.pow(veinSizes.get(pos), veinPriority.get());
 
             // Finish the ores you can already see right next to you before walking off, otherwise a vein can be
             // left half mined and its rest ends up out of range later
@@ -1239,6 +1253,53 @@ public class SeedMiner extends Module {
         }
 
         return best;
+    }
+
+    /** Radius (blocks) in which ores count as one group, so a block of stone between two ores still connects them. */
+    private static final int VEIN_GAP = 2;
+
+    /** Number of ores in the group each ore within max-distance belongs to. */
+    private Map<BlockPos, Integer> veinSizes(double maxDistSq) {
+        double px = mc.player.getX(), pz = mc.player.getZ();
+        Set<BlockPos> candidates = new HashSet<>();
+        for (BlockPos pos : ores.keySet()) {
+            double dx = pos.getX() + 0.5 - px, dz = pos.getZ() + 0.5 - pz;
+            if (dx * dx + dz * dz <= maxDistSq) candidates.add(pos);
+        }
+
+        Map<BlockPos, Integer> sizes = new HashMap<>();
+        Deque<BlockPos> queue = new ArrayDeque<>();
+        List<BlockPos> group = new ArrayList<>();
+        BlockPos.Mutable neighbour = new BlockPos.Mutable();
+
+        for (BlockPos start : candidates) {
+            if (sizes.containsKey(start)) continue;
+
+            group.clear();
+            sizes.put(start, 0);
+            queue.add(start);
+            while (!queue.isEmpty()) {
+                BlockPos pos = queue.poll();
+                group.add(pos);
+
+                for (int x = -VEIN_GAP; x <= VEIN_GAP; x++) {
+                    for (int y = -VEIN_GAP; y <= VEIN_GAP; y++) {
+                        for (int z = -VEIN_GAP; z <= VEIN_GAP; z++) {
+                            neighbour.set(pos, x, y, z);
+                            if (candidates.contains(neighbour) && !sizes.containsKey(neighbour)) {
+                                BlockPos next = neighbour.toImmutable();
+                                sizes.put(next, 0);
+                                queue.add(next);
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (BlockPos pos : group) sizes.put(pos, group.size());
+        }
+
+        return sizes;
     }
 
     private void finishTarget() {

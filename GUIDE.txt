@@ -70,7 +70,7 @@ IMPORTANT - JAVA 23:
      ores you want (default: diamond + ancient debris).
 
   5. Left-click the module to enable it. Baritone now walks or digs to the
-     nearest predicted ore.
+     predicted ores, veins first.
 
   TIP: Bind a key to toggle the module right away (in the module settings,
   "Bind" at the top). That way you can stop it at any time.
@@ -148,6 +148,14 @@ Otherwise the predictions are wrong.
   vertical-cost       How much height differences count when
                       picking the next ore. Higher = prefer
                       staying on your level.                     Default: 2
+  vein-priority       How much groups of ores (veins) are
+                      preferred over single ores. Ores at most 2
+                      blocks apart count as one group.
+                      0 = always the nearest ore
+                      1 = the group with the least walking per
+                          ore, e.g. a vein of 4 ores 20 blocks away
+                          beats a single ore 10 blocks away
+                      Higher = prefer veins even more.           Default: 1
   target-timeout      Skip an ore after this many seconds        Default: 90
   path-retries        Retries when Baritone can't find a path    Default: 2
   collect-drops       Walk to the drops of mined ores (diamonds,
