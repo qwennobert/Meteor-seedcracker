@@ -42,4 +42,28 @@
                        pause-near-players an, kleiner chunk-radius,
                        zufällige Pausen
 
+[ ] Smooth Movement: weiche Kamera-/Mausbewegung
+    Baritone dreht den Kopf beim Laufen und Abbauen ruckartig (Snap auf den
+    Zielwinkel). Die Drehung soll stattdessen weich und menschlich aussehen.
+
+    Was Baritone schon kann (Stufe 1, wenig Aufwand):
+    - smoothLook + smoothLookTicks: mittelt die Drehung über die letzten
+      N Ticks. Glättet aber nur die Kamera auf deinem Bildschirm, nicht die
+      Blickrichtung, die der Server sieht.
+    - randomLooking / randomLooking113: kleines Zufallszittern pro Tick.
+    -> Als Einstellungen in Seed Miner aufnehmen (Gruppe "Mining" oder neue
+       Gruppe "Movement") und über "configure-baritone" setzen/zurücksetzen.
+
+    Echte Glättung (Stufe 2, mehr Aufwand):
+    - Mixin in Baritones Rotations-Logik (LookBehavior): Zielwinkel nicht
+      sofort setzen, sondern pro Tick nur um max. X Grad drehen.
+    - Einstellungen: max. Drehgeschwindigkeit (Grad/Tick), Beschleunigung/
+      Abbremsen (Easing), etwas Zufall in Tempo und Kurve.
+    - Erst abbauen, wenn der Blick wirklich auf dem Block ist. Sonst bricht
+      Baritone den Block "um die Ecke" ab.
+    - Risiko: Baritone-Interna sind keine API und ändern sich mit Updates.
+      Langsamere Drehung macht Baritone auch etwas langsamer.
+
+    Passt gut zum Preset "Unauffällig" (siehe Presets).
+
 ===============================================================================
