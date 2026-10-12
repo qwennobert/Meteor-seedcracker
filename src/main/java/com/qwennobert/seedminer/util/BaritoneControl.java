@@ -16,7 +16,7 @@ import net.minecraft.util.math.BlockPos;
 public final class BaritoneControl {
     private Goal goal;
 
-    private Boolean prevAllowBreak, prevAllowPlace, prevAllowParkour;
+    private Boolean prevAllowBreak, prevAllowPlace, prevAllowParkour, prevExternalAutoTool;
 
     private static IBaritone baritone() {
         return BaritoneAPI.getProvider().getPrimaryBaritone();
@@ -88,5 +88,22 @@ public final class BaritoneControl {
         settings.allowPlace.value = prevAllowPlace;
         settings.allowParkour.value = prevAllowParkour;
         prevAllowBreak = prevAllowPlace = prevAllowParkour = null;
+    }
+
+    /**
+     * Stops Baritone from switching tools itself while still planning paths as if the best tool is used,
+     * because the module selects the tools instead.
+     */
+    public void setExternalAutoTool(boolean enabled) {
+        Settings settings = BaritoneAPI.getSettings();
+
+        if (enabled) {
+            if (prevExternalAutoTool == null) prevExternalAutoTool = settings.assumeExternalAutoTool.value;
+            settings.assumeExternalAutoTool.value = true;
+        }
+        else if (prevExternalAutoTool != null) {
+            settings.assumeExternalAutoTool.value = prevExternalAutoTool;
+            prevExternalAutoTool = null;
+        }
     }
 }

@@ -70,6 +70,10 @@ because the module simply gives Baritone the next ore.
 | | `collect-drops` / `collect-radius` / `collect-timeout` | Walk to the drops of mined ores before moving on, so none are left behind |
 | | `configure-baritone` | Sets `allowBreak=true` plus `allow-place` / `allow-parkour`; restored afterwards |
 | | `disable-when-done` | Disable when no ores are left |
+| Auto Tool | `auto-tool` | Pick the tool for every block Baritone breaks (tools must be in the hotbar) |
+| | `fortune-only-on-ores` | Fortune pickaxe only on ores, a pickaxe without fortune for everything else |
+| | `fortune-fallback` | Use the fortune pickaxe for other blocks too if there is no other pickaxe (otherwise the module stops) |
+| | `min-durability` | Don't use tools below this durability (percent) |
 | Safety | `min-health` | Disable at low health |
 | | `stop-when-full` | Disable when the inventory is full |
 | | `require-pickaxe` | Disable when there is no pickaxe in the hotbar |

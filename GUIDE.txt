@@ -152,6 +152,28 @@ Otherwise the predictions are wrong.
   disable-when-done   Disable when no ores are left. Otherwise
                       it waits for new chunks.                   Default: off
 
+[Auto Tool] - which tool is used
+  The module picks the tool for every block Baritone breaks (Baritone's own
+  tool switching is turned off while the module runs). Tools must be in the
+  hotbar.
+
+  auto-tool           On/off                                     Default: on
+  fortune-only-on-ores
+                      Ores (coal, copper, iron, gold, redstone,
+                      lapis, diamond, emerald, nether gold,
+                      quartz): the pickaxe with the highest
+                      fortune. Everything else: the fastest tool
+                      WITHOUT fortune, so the fortune pickaxe
+                      only wears down on ores.                   Default: on
+    fortune-fallback  If there is no other pickaxe, use the
+                      fortune pickaxe for stone too. Off = the
+                      module stops with a message.               Default: off
+  min-durability      Don't use tools with less durability left
+                      (percent), so they don't break.            Default: 5
+
+  Tip: carry a fortune pickaxe AND a normal (e.g. efficiency) pickaxe in the
+  hotbar. Turn off Meteor's own "Auto Tool" module while Seed Miner runs.
+
 [Safety]
   min-health          Disable at this health or lower (0 = off)  Default: 8
   stop-when-full      Disable when the inventory is full         Default: on

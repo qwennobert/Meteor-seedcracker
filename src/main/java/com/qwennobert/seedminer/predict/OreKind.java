@@ -60,6 +60,11 @@ public enum OreKind {
         return false;
     }
 
+    /** True if fortune increases the drops (not for raw ore blocks and ancient debris). */
+    public boolean fortuneAffects() {
+        return this != RAW_COPPER_BLOCK && this != RAW_IRON_BLOCK && this != ANCIENT_DEBRIS;
+    }
+
     public boolean matches(Block block) {
         return blocks.contains(block);
     }

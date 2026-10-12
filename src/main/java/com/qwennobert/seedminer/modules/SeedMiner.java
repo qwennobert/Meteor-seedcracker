@@ -9,6 +9,8 @@ import com.qwennobert.seedminer.predict.ScanParams;
 import com.qwennobert.seedminer.seed.ResolvedSeed;
 import com.qwennobert.seedminer.seed.SeedSource;
 import com.qwennobert.seedminer.util.BaritoneControl;
+import com.qwennobert.seedminer.util.ToolSelector;
+import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.BlockUpdateEvent;
@@ -30,6 +32,7 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.StringSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
@@ -64,6 +67,7 @@ public class SeedMiner extends Module {
     private final SettingGroup sgSeed = settings.createGroup("Seed");
     private final SettingGroup sgTargets = settings.createGroup("Targets");
     private final SettingGroup sgMining = settings.createGroup("Mining");
+    private final SettingGroup sgAutoTool = settings.createGroup("Auto Tool");
     private final SettingGroup sgSafety = settings.createGroup("Safety");
     private final SettingGroup sgAntiDetection = settings.createGroup("Anti-Detection", false);
     private final SettingGroup sgRender = settings.createGroup("Render");
@@ -259,6 +263,42 @@ public class SeedMiner extends Module {
         .name("disable-when-done")
         .description("Disable the module when no ores are left. Otherwise it waits for new chunks.")
         .defaultValue(false)
+        .build()
+    );
+
+    // Auto Tool
+
+    private final Setting<Boolean> autoTool = sgAutoTool.add(new BoolSetting.Builder()
+        .name("auto-tool")
+        .description("Select the tool for every block Baritone breaks instead of letting Baritone do it. Tools must be in the hotbar.")
+        .defaultValue(true)
+        .onChanged(v -> applyBaritoneSettings())
+        .build()
+    );
+
+    private final Setting<Boolean> fortuneOnlyOnOres = sgAutoTool.add(new BoolSetting.Builder()
+        .name("fortune-only-on-ores")
+        .description("Use fortune pickaxes only on ores and a pickaxe without fortune for everything else, so the fortune pickaxe lasts longer.")
+        .defaultValue(true)
+        .visible(autoTool::get)
+        .build()
+    );
+
+    private final Setting<Boolean> fortuneFallback = sgAutoTool.add(new BoolSetting.Builder()
+        .name("fortune-fallback")
+        .description("If there is no other pickaxe, use the fortune pickaxe for other blocks too. Otherwise the module stops.")
+        .defaultValue(false)
+        .visible(() -> autoTool.get() && fortuneOnlyOnOres.get())
+        .build()
+    );
+
+    private final Setting<Integer> minToolDurability = sgAutoTool.add(new IntSetting.Builder()
+        .name("min-durability")
+        .description("Don't use tools with less durability left than this (percent), so they don't break.")
+        .defaultValue(5)
+        .range(0, 50)
+        .sliderRange(0, 25)
+        .visible(autoTool::get)
         .build()
     );
 
@@ -472,6 +512,9 @@ public class SeedMiner extends Module {
     private final Set<Integer> ignoredDrops = new HashSet<>();
     /** The target ore is done, but the follow-up (detour, pause) waits until its drops are collected. */
     private boolean targetDonePending;
+
+    /** Set from the block break event, the module is stopped on the next tick (not in the middle of Baritone's tick). */
+    private String autoToolStop;
     private boolean warnedNoSeed;
     private String status = "Idle";
 
@@ -489,6 +532,7 @@ public class SeedMiner extends Module {
         applyBaritoneSettings();
 
         warnedNoSeed = false;
+        autoToolStop = null;
         lastScanCenter = null;
         pauseUntil = 0;
         ignoredDrops.clear();
@@ -501,6 +545,7 @@ public class SeedMiner extends Module {
         if (baritone != null) {
             baritone.stop();
             baritone.restore();
+            baritone.setExternalAutoTool(false);
         }
         target = null;
         detourPos = null;
@@ -517,6 +562,13 @@ public class SeedMiner extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         if (mc.player == null || mc.world == null) return;
+
+        if (autoToolStop != null) {
+            error(autoToolStop);
+            autoToolStop = null;
+            toggle();
+            return;
+        }
 
         if (!updateParams()) return;
 
@@ -549,6 +601,28 @@ public class SeedMiner extends Module {
         if (!safetyCheck()) return;
 
         mine();
+    }
+
+    /** Picks the tool right before a block starts breaking, for Baritone and also for blocks you break yourself. */
+    @EventHandler
+    private void onStartBreaking(StartBreakingBlockEvent event) {
+        if (!autoTool.get() || autoToolStop != null) return;
+
+        BlockState state = mc.world.getBlockState(event.blockPos);
+        if (state.isAir() || state.getHardness(mc.world, event.blockPos) == 0) return;
+
+        OreKind kind = OreKind.of(state.getBlock());
+        boolean ore = kind != null && kind.fortuneAffects();
+
+        int slot = ToolSelector.select(mc.player.getInventory(), state, ore, fortuneOnlyOnOres.get(), fortuneFallback.get(), minToolDurability.get());
+        if (slot == ToolSelector.ONLY_FORTUNE) {
+            event.cancel();
+            autoToolStop = "Only a fortune pickaxe can mine " + state.getBlock().getName().getString()
+                + ". Put another pickaxe in your hotbar or enable fortune-fallback. Stopping.";
+            return;
+        }
+
+        if (slot >= 0 && slot != mc.player.getInventory().getSelectedSlot()) InvUtils.swap(slot, false);
     }
 
     /**
@@ -1123,6 +1197,8 @@ public class SeedMiner extends Module {
 
         if (configureBaritone.get()) baritone.configure(allowPlace.get(), allowParkour.get());
         else baritone.restore();
+
+        baritone.setExternalAutoTool(autoTool.get());
     }
 
     public String status() {
