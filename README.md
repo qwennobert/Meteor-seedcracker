@@ -1,105 +1,107 @@
-# Seed Miner – Meteor-Client-Addon (Minecraft 1.21.11)
+# Seed Miner – Meteor Client addon (Minecraft 1.21.11)
 
-Seed Miner berechnet aus dem Welt-Seed, wo Erze liegen, und lässt sie von Baritone automatisch abbauen.
-Den Seed übernimmt das Addon aus [SeedMapper](https://github.com/xpple/SeedMapper) oder du gibst ihn selbst ein.
-Alle Parameter lassen sich in der Meteor-GUI einstellen.
+Seed Miner predicts where ores are from the world seed and lets Baritone mine them automatically.
+The seed is taken from [SeedMapper](https://github.com/xpple/SeedMapper), or you enter it yourself.
+Everything can be configured in the Meteor GUI.
 
-Eine ausführliche Schritt-für-Schritt-Anleitung findest du in [GUIDE.txt](GUIDE.txt).
+A detailed step-by-step guide is in [GUIDE.txt](GUIDE.txt).
 
-> Gedacht für den eigenen (self-hosted) Server oder Singleplayer. Auf öffentlichen Servern ist das Cheating und führt zum Bann.
+> Meant for your own (self-hosted) server or singleplayer. On public servers this is cheating and will get you banned.
 
-## Wie es funktioniert
+## How it works
 
-1. **Seed**: Das Addon fragt SeedMapper nach dem Seed der aktuellen Welt, genau wie SeedMapper es für seine eigenen
-   Befehle macht. Dabei gilt SeedMappers Reihenfolge (`SeedResolutionOrder`): zuerst `/sm:config Seed set <seed>`,
-   dann die pro Server gespeicherten Seeds (`/sm:config SavedSeeds add <seed>`), dann SeedMappers Online-Datenbank.
-   Alternativ trägst du den Seed in den Moduleinstellungen ein. Auf dem eigenen Server bekommst du ihn mit `/seed`.
-2. **Vorhersage**: Das Addon nutzt die cubiomes-Bibliothek, die in SeedMapper steckt (gleiche Erz-Logik wie `/sm:highlight block`).
-   Damit berechnet es in einem Hintergrund-Thread für alle Chunks um dich herum die Erz-Positionen.
-3. **Prüfung**: In geladenen Chunks werden vorhergesagte Positionen verworfen, die in Wirklichkeit Luft sind (Höhlen, schon abgebaut).
-4. **Abbau**: Baritone läuft bzw. gräbt zum nächstgelegenen Erz (Höhenunterschiede zählen stärker) und baut es ab.
-   Danach geht es zum nächsten Erz. Während du dich bewegst, werden neue Chunks gescannt.
+1. **Seed**: The addon asks SeedMapper for the seed of the current world, the same way SeedMapper does for its own
+   commands. SeedMapper's order (`SeedResolutionOrder`) applies: first `/sm:config Seed set <seed>`, then the seeds
+   saved per server (`/sm:config SavedSeeds add <seed>`), then SeedMapper's online database.
+   You can also enter the seed in the module settings. On your own server you get it with `/seed`.
+2. **Prediction**: The addon uses the cubiomes library bundled with SeedMapper (same ore logic as `/sm:highlight block`)
+   to compute the ore positions of all chunks around you on a background thread.
+3. **Verification**: In loaded chunks, predicted positions that are actually air (caves, already mined) are dropped.
+4. **Mining**: Baritone walks or digs to the nearest ore (height differences weigh more) and mines it, then moves on
+   to the next one. New chunks are scanned while you move.
 
 ## Installation
 
-In den `mods`-Ordner legen (alles für **1.21.11**):
+Put these into your `mods` folder (all for **1.21.11**):
 
-| Mod | Pflicht | Hinweis |
+| Mod | Required | Notes |
 |---|---|---|
-| [Fabric Loader](https://fabricmc.net/use/) ≥ 0.18.2 | ja | |
-| [Fabric API](https://modrinth.com/mod/fabric-api) | ja | wird von SeedMapper gebraucht |
-| [Meteor Client](https://meteorclient.com/) 1.21.11 | ja | |
-| [SeedMapper](https://modrinth.com/mod/seedmapper/versions) **2.21.x** | ja | liefert die Erz-Vorhersage (cubiomes) |
-| [Baritone (Meteor-Build)](https://maven.meteordev.org/#/snapshots/meteordevelopment/baritone) 1.21.11 | für Abbau | ohne Baritone werden Erze nur markiert |
-| Seed Miner (`build/libs/seed-miner-*.jar`) | ja | dieses Addon |
+| [Fabric Loader](https://fabricmc.net/use/) ≥ 0.18.2 | yes | |
+| [Fabric API](https://modrinth.com/mod/fabric-api) | yes | needed by SeedMapper |
+| [Meteor Client](https://meteorclient.com/) 1.21.11 | yes | |
+| [SeedMapper](https://modrinth.com/mod/seedmapper/versions) **2.21.x** | yes | provides the ore prediction (cubiomes) |
+| [Baritone (Meteor build)](https://maven.meteordev.org/#/snapshots/meteordevelopment/baritone) 1.21.11 | for mining | without Baritone, ores are only highlighted |
+| Seed Miner (`seed-miner-<version>.jar`) | yes | this addon, from the latest [release](../../releases/latest) |
 
-**Du brauchst Java 23 oder neuer**, weil SeedMapper das für 1.21.11 verlangt. Stell im Launcher für die Instanz
-eine Java-23+-Laufzeit ein (z. B. [Temurin](https://adoptium.net/temurin/releases/)).
+**Java 23 or newer is required**, because SeedMapper needs it on 1.21.11. Set a Java 23+ runtime for the instance in
+your launcher (e.g. [Temurin](https://adoptium.net/temurin/releases/)).
 
-## Benutzung
+Every build has its own version (e.g. `0.2.0+build.12`). Remove the old Seed Miner jar from `mods` before adding a new one.
 
-1. Meteor-GUI öffnen (Rechte Umschalttaste) → Kategorie **Seed Miner** → Modul **seed-miner**.
-2. Seed-Quelle und gewünschte Erze einstellen, dann das Modul aktivieren.
-3. Optional: Im HUD-Editor von Meteor das Element **seed-miner** hinzufügen (Status, Anzahl Erze, abgebaut/übersprungen).
+## Usage
 
-Auf der Modulseite siehst du außerdem den Status und den verwendeten Seed. Dazu gibt es die Buttons *Rescan*, *Skip target* und *Reset stats*.
+1. Open the Meteor GUI (Right Shift) → category **Seed Miner** → module **seed-miner**.
+2. Set the seed source and the ores you want, then enable the module.
+3. Optional: add the **seed-miner** element in Meteor's HUD editor (status, number of ores, mined/skipped).
 
-**Stoppen:** Das Modul deaktivieren (am besten eine Taste dafür belegen). Baritones eigenes `#stop` hält das Modul nicht
-dauerhaft an, weil es Baritone einfach das nächste Erz gibt.
+The module page also shows the status and the seed in use, plus the buttons *Rescan*, *Skip target* and *Reset stats*.
 
-### Einstellungen
+**Stopping:** disable the module (bind a key to it). Baritone's own `#stop` does not stop the module for good,
+because the module simply gives Baritone the next ore.
 
-| Gruppe | Einstellung | Beschreibung |
+### Settings
+
+| Group | Setting | Description |
 |---|---|---|
-| Seed | `seed-source` | `Auto` (manueller Seed, sonst SeedMapper), `Manual`, `SeedMapper` |
-| | `manual-seed` | Seed als Zahl (oder Text wie im Welt-erstellen-Menü); leer lassen, um den Seed aus SeedMapper zu nehmen |
-| | `large-biomes` | Einschalten, wenn die Welt mit „Große Biome“ erstellt wurde |
-| Targets | `blocks` | Erze: Kohle, Kupfer, Eisen, Gold, Redstone, Lapis, Diamant, Smaragd, Roheisen-/Rohkupferblock, Nethergold, Quarz, Antiker Schrott |
-| | `ore-veins` | Große Kupfer-/Eisenadern mit einbeziehen (langsamer) |
-| | `chunk-radius` | Scan-Radius in Chunks |
-| | `min-y` / `max-y` | Höhenbereich |
-| | `follow-player` | Neue Chunks scannen, während du dich bewegst |
-| | `verify` | `Off`, `SkipAir` (Standard), `Exact` (nur Blöcke behalten, die wirklich das Erz sind; funktioniert nicht mit Anti-Xray) |
-| Mining | `auto-mine` | Mit Baritone abbauen oder nur markieren |
-| | `max-distance` | Maximale horizontale Entfernung zum Erz |
-| | `vertical-cost` | Wie stark Höhenunterschiede bei der Wahl des nächsten Erzes zählen |
-| | `target-timeout` | Erz nach N Sekunden überspringen |
-| | `path-retries` | Neue Versuche, wenn Baritone keinen Weg findet |
-| | `configure-baritone` | Setzt `allowBreak=true` und dazu `allow-place` / `allow-parkour`; wird danach zurückgesetzt |
-| | `disable-when-done` | Abschalten, wenn keine Erze mehr übrig sind |
-| Safety | `min-health` | Abschalten bei wenig Leben |
-| | `stop-when-full` | Abschalten, wenn das Inventar voll ist |
-| | `require-pickaxe` | Abschalten, wenn keine Spitzhacke in der Hotbar ist |
-| | `pause-near-players` / `player-range` | Pausieren, solange andere Spieler in der Nähe sind |
-| Anti-Detection | `anti-detection` | Hauptschalter; die Optionen darunter erscheinen nur, wenn er an ist (Gruppe ist eingeklappt, Klick auf die Überschrift klappt sie auf) |
-| | `max-ores-per-minute` | Höchstens so viele Erze in 60 Sekunden, dann wird gewartet (0 = kein Limit) |
-| | `random-pause` / `pause-min` / `pause-max` | Zufällige Pause nach jedem Erz (Sekunden) |
-| | `stone-detours` / `detour-chance` / `detour-distance` | Nach einem Erz mit X % Chance einen zufälligen Steinblock in der Nähe abbauen |
-| Render | `render`, `render-limit`, `shape-mode`, Farben, `tracer` | Markierung der vorhergesagten Erze |
+| Seed | `seed-source` | `Auto` (manual seed, otherwise SeedMapper), `Manual`, `SeedMapper` |
+| | `manual-seed` | Seed as a number (or text, like in the world creation screen); leave empty to use the seed from SeedMapper |
+| | `large-biomes` | Enable if the world was created with the Large Biomes preset |
+| Targets | `blocks` | Ores: coal, copper, iron, gold, redstone, lapis, diamond, emerald, raw iron/copper blocks, nether gold, quartz, ancient debris |
+| | `ore-veins` | Include large copper/iron ore veins (slower) |
+| | `chunk-radius` | Scan radius in chunks |
+| | `min-y` / `max-y` | Height range |
+| | `follow-player` | Keep scanning new chunks while you move |
+| | `verify` | `Off`, `SkipAir` (default), `Exact` (only keep blocks that really are the ore; does not work with anti-xray) |
+| Mining | `auto-mine` | Mine with Baritone, or only highlight |
+| | `max-distance` | Maximum horizontal distance to an ore |
+| | `vertical-cost` | How much height differences count when picking the next ore |
+| | `target-timeout` | Skip an ore after N seconds |
+| | `path-retries` | Retries when Baritone can't find a path |
+| | `configure-baritone` | Sets `allowBreak=true` plus `allow-place` / `allow-parkour`; restored afterwards |
+| | `disable-when-done` | Disable when no ores are left |
+| Safety | `min-health` | Disable at low health |
+| | `stop-when-full` | Disable when the inventory is full |
+| | `require-pickaxe` | Disable when there is no pickaxe in the hotbar |
+| | `pause-near-players` / `player-range` | Pause while other players are nearby |
+| Anti-Detection | `anti-detection` | Master switch; the options below only show while it is on (the group starts collapsed, click its title to expand it) |
+| | `max-ores-per-minute` | Mine at most this many ores within 60 seconds, then wait (0 = no limit) |
+| | `random-pause` / `pause-min` / `pause-max` | Random pause after each ore (seconds) |
+| | `stone-detours` / `detour-chance` / `detour-distance` | After an ore, mine a random nearby stone block with X % chance |
+| Render | `render`, `render-limit`, `shape-mode`, colors, `tracer` | Highlighting of the predicted ores |
 
-### Befehl
+### Command
 
 ```
-.seedminer                 Status
-.seedminer seed <seed>     manuellen Seed setzen
-.seedminer clear-seed      manuellen Seed löschen
-.seedminer rescan          alle Vorhersagen neu berechnen
-.seedminer skip            aktuelles Erz überspringen
+.seedminer                 status
+.seedminer seed <seed>     set the manual seed
+.seedminer clear-seed      clear the manual seed
+.seedminer rescan          recompute all predictions
+.seedminer skip            skip the current ore
 ```
 
-## Grenzen
+## Limitations
 
-- Die Vorhersage berücksichtigt nicht, ob ein Erz an Luft grenzt. Deshalb sind aus der Entfernung viele Positionen falsch
-  (vor allem Diamanten neben Höhlen sowie Kohle, Kupfer und Smaragd). Für geladene Chunks korrigiert `verify` das.
-  Falsche Ziele merkt das Modul, sobald Baritone dort ankommt, und überspringt sie.
-- Läuft der Server mit einer anderen Version als 1.21.11 (z. B. über ViaFabricPlus), stimmt die Vorhersage nicht.
-- Baritone baut über Pathing ab: Es gräbt sich zum Erz und bricht es dabei als Teil des Weges ab.
+- The prediction doesn't know whether an ore touches air, so many positions predicted from far away are wrong
+  (especially diamonds next to caves, and coal, copper and emerald). In loaded chunks `verify` corrects this.
+  Wrong targets are noticed once Baritone gets there and are skipped. They count as *invalid*, not as mined.
+- If the server runs a different version than 1.21.11 (e.g. via ViaFabricPlus), the prediction won't match.
+- Baritone mines by pathing: it digs its way to the ore and breaks it as part of the path.
 
-## Bauen
+## Building
 
 ```bash
 ./gradlew build
 ```
 
-Die Jar landet in `build/libs/`. Falls nötig, lädt Gradle JDK 23 automatisch herunter.
-`./gradlew runClient` startet einen Dev-Client mit Meteor, Baritone, SeedMapper und Fabric API.
+The jar ends up in `build/libs/`. Gradle downloads JDK 23 automatically if needed.
+`./gradlew runClient` starts a dev client with Meteor, Baritone, SeedMapper and Fabric API.

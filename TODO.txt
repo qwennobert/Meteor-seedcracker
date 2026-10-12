@@ -2,58 +2,58 @@
   SEED MINER - TODO
 ===============================================================================
 
-[x] Anti-Detection: Abbau-Limit pro Minute
-    Erledigt: Gruppe "Anti-Detection" mit Hauptschalter, max-ores-per-minute,
-    zufälligen Pausen und Stein-Umwegen (siehe GUIDE.txt).
+[x] Anti-detection: ore limit per minute
+    Done: "Anti-Detection" group with a master switch, max-ores-per-minute,
+    random pauses and stone detours (see GUIDE.txt).
 
-    Noch offen:
-    - Nicht auf direktem Weg zum Erz graben (Baritone-Pfad leicht verändern).
+    Still open:
+    - Don't dig the direct way to the ore (vary Baritone's path a bit).
 
-[ ] Presets (gemeinsam festlegen)
-    Fertige Einstellungs-Sets, die man mit einem Klick laden kann.
+[ ] Presets (to be decided together)
+    Ready-made sets of settings that can be loaded with one click.
 
-    Umsetzung:
-    - Auswahl "preset" + Button "Apply" auf der Modulseite, zusätzlich
+    Implementation:
+    - "preset" selection + "Apply" button on the module page, plus
       ".seedminer preset <name>".
-    - Ein Preset setzt nur die Einstellungen, die es betrifft. Alles andere
-      bleibt wie eingestellt.
+    - A preset only changes the settings it covers. Everything else stays
+      as it is.
 
-    Vorschläge (Werte noch offen, bitte abstimmen):
-    - Diamanten        Diamanterz (+ Tiefenschiefer), y -64 bis 16,
-                       vertical-cost hoch (auf einer Ebene bleiben)
-    - Antiker Schrott  Antiker Schrott, Nether, y 8 bis 24, allow-place an
-                       (Lava abdecken)
-    - Eisen & Kupfer   Eisen, Kupfer, Roheisen-/Rohkupferblock, ore-veins an
-    - Wertvolles       Diamant, Smaragd, Gold, Lapis, Redstone
-    - Smaragd          Smaragderz, nur in Bergbiomen sinnvoll, hoher
-                       y-Bereich
-    - Nur anzeigen     auto-mine aus, großer chunk-radius, render an
-    - Unauffällig      kleines Abbau-Limit pro Minute (siehe oben),
-                       pause-near-players an, kleiner chunk-radius,
-                       zufällige Pausen
+    Suggestions (values still open, to be agreed on):
+    - Diamonds         Diamond ore (+ deepslate), y -64 to 16,
+                       high vertical-cost (stay on one level)
+    - Ancient debris   Ancient debris, Nether, y 8 to 24, allow-place on
+                       (cover lava)
+    - Iron & copper    Iron, copper, raw iron/copper blocks, ore-veins on
+    - Valuables        Diamond, emerald, gold, lapis, redstone
+    - Emerald          Emerald ore, only useful in mountain biomes, high
+                       y range
+    - Highlight only   auto-mine off, large chunk-radius, render on
+    - Low profile      small ore limit per minute (see above),
+                       pause-near-players on, small chunk-radius,
+                       random pauses
 
-[ ] Smooth Movement: weiche Kamera-/Mausbewegung
-    Baritone dreht den Kopf beim Laufen und Abbauen ruckartig (Snap auf den
-    Zielwinkel). Die Drehung soll stattdessen weich und menschlich aussehen.
+[ ] Smooth movement: smooth camera/mouse rotation
+    Baritone turns the head abruptly while walking and mining (snaps to the
+    target angle). The rotation should look smooth and human instead.
 
-    Was Baritone schon kann (Stufe 1, wenig Aufwand):
-    - smoothLook + smoothLookTicks: mittelt die Drehung über die letzten
-      N Ticks. Glättet aber nur die Kamera auf deinem Bildschirm, nicht die
-      Blickrichtung, die der Server sieht.
-    - randomLooking / randomLooking113: kleines Zufallszittern pro Tick.
-    -> Als Einstellungen in Seed Miner aufnehmen (Gruppe "Mining" oder neue
-       Gruppe "Movement") und über "configure-baritone" setzen/zurücksetzen.
+    What Baritone can already do (step 1, little effort):
+    - smoothLook + smoothLookTicks: averages the rotation over the last
+      N ticks. Only smooths the camera on your screen, not the look
+      direction the server sees.
+    - randomLooking / randomLooking113: small random jitter per tick.
+    -> Add them as Seed Miner settings ("Mining" group or a new "Movement"
+       group) and set/restore them via "configure-baritone".
 
-    Echte Glättung (Stufe 2, mehr Aufwand):
-    - Mixin in Baritones Rotations-Logik (LookBehavior): Zielwinkel nicht
-      sofort setzen, sondern pro Tick nur um max. X Grad drehen.
-    - Einstellungen: max. Drehgeschwindigkeit (Grad/Tick), Beschleunigung/
-      Abbremsen (Easing), etwas Zufall in Tempo und Kurve.
-    - Erst abbauen, wenn der Blick wirklich auf dem Block ist. Sonst bricht
-      Baritone den Block "um die Ecke" ab.
-    - Risiko: Baritone-Interna sind keine API und ändern sich mit Updates.
-      Langsamere Drehung macht Baritone auch etwas langsamer.
+    Real smoothing (step 2, more effort):
+    - Mixin into Baritone's rotation logic (LookBehavior): don't apply the
+      target angle at once, but turn at most X degrees per tick.
+    - Settings: max. turn speed (degrees/tick), acceleration/deceleration
+      (easing), some randomness in speed and curve.
+    - Only mine once the view is really on the block. Otherwise Baritone
+      breaks the block "around the corner".
+    - Risk: Baritone internals are not an API and change with updates.
+      Slower turning also makes Baritone a bit slower.
 
-    Passt gut zum Preset "Unauffällig" (siehe Presets).
+    Goes well with the "Low profile" preset (see Presets).
 
 ===============================================================================
