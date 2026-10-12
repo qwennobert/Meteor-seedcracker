@@ -19,4 +19,27 @@
       auf direktem Weg zum Erz graben.
     - Anzeige des Limits in Modulseite, HUD und ".seedminer"-Status.
 
+[ ] Presets (gemeinsam festlegen)
+    Fertige Einstellungs-Sets, die man mit einem Klick laden kann.
+
+    Umsetzung:
+    - Auswahl "preset" + Button "Apply" auf der Modulseite, zusätzlich
+      ".seedminer preset <name>".
+    - Ein Preset setzt nur die Einstellungen, die es betrifft. Alles andere
+      bleibt wie eingestellt.
+
+    Vorschläge (Werte noch offen, bitte abstimmen):
+    - Diamanten        Diamanterz (+ Tiefenschiefer), y -64 bis 16,
+                       vertical-cost hoch (auf einer Ebene bleiben)
+    - Antiker Schrott  Antiker Schrott, Nether, y 8 bis 24, allow-place an
+                       (Lava abdecken)
+    - Eisen & Kupfer   Eisen, Kupfer, Roheisen-/Rohkupferblock, ore-veins an
+    - Wertvolles       Diamant, Smaragd, Gold, Lapis, Redstone
+    - Smaragd          Smaragderz, nur in Bergbiomen sinnvoll, hoher
+                       y-Bereich
+    - Nur anzeigen     auto-mine aus, großer chunk-radius, render an
+    - Unauffällig      kleines Abbau-Limit pro Minute (siehe oben),
+                       pause-near-players an, kleiner chunk-radius,
+                       zufällige Pausen
+
 ===============================================================================
