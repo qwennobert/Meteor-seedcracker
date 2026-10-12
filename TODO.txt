@@ -2,22 +2,12 @@
   SEED MINER - TODO
 ===============================================================================
 
-[ ] Anti-Detection: Abbau-Limit pro Minute
-    Maximal X Erze pro Minute abbauen, damit das Abbaumuster nicht auffällt
-    (z. B. für Anti-Xray-Plugins, die zu viele Erzfunde in kurzer Zeit melden).
+[x] Anti-Detection: Abbau-Limit pro Minute
+    Erledigt: Gruppe "Anti-Detection" mit Hauptschalter, max-ores-per-minute,
+    zufälligen Pausen und Stein-Umwegen (siehe GUIDE.txt).
 
-    Ideen zur Umsetzung:
-    - Neue Einstellung in der Gruppe "Safety", z. B. "max-ores-per-minute"
-      (0 = aus).
-    - Abgebaute Erze mit Zeitstempel merken (gleitendes Fenster über die
-      letzten 60 Sekunden).
-    - Ist das Limit erreicht: kein neues Ziel an Baritone geben und warten,
-      bis wieder Platz im Fenster ist. Status z. B. "Waiting (rate limit)".
-    - Optional: zufällige Pause zwischen zwei Erzen (min/max Sekunden),
-      damit der Takt nicht gleichmäßig ist.
-    - Optional: zwischendurch "normale" Blöcke (Stein) abbauen bzw. nicht
-      auf direktem Weg zum Erz graben.
-    - Anzeige des Limits in Modulseite, HUD und ".seedminer"-Status.
+    Noch offen:
+    - Nicht auf direktem Weg zum Erz graben (Baritone-Pfad leicht verändern).
 
 [ ] Presets (gemeinsam festlegen)
     Fertige Einstellungs-Sets, die man mit einem Klick laden kann.

@@ -152,6 +152,29 @@ Sonst stimmen die Vorhersagen nicht.
   pause-near-players  Pausieren, wenn andere Spieler nah sind    Std: aus
     player-range      Entfernung dafür                           Std: 32
 
+[Anti-Detection] - unauffälliger abbauen
+  Die Gruppe ist eingeklappt. Klick auf die Überschrift "Anti-Detection"
+  klappt sie auf und wieder zu. Die Optionen unter dem Hauptschalter
+  erscheinen erst, wenn er an ist.
+
+  anti-detection      Hauptschalter                              Std: aus
+  max-ores-per-minute Höchstens so viele Erze in 60 Sekunden.
+                      Ist das Limit erreicht, wartet das Modul
+                      (Status "Waiting (rate limit, Xs)").
+                      0 = kein Limit                             Std: 8
+  random-pause        Nach jedem Erz zufällig warten             Std: an
+    pause-min         Kürzeste Pause in Sekunden                 Std: 1.5
+    pause-max         Längste Pause in Sekunden                  Std: 6
+  stone-detours       Nach einem Erz manchmal einen zufälligen
+                      Steinblock in der Nähe abbauen, statt
+                      direkt zum nächsten Erz zu gehen           Std: aus
+    detour-chance     Chance in Prozent pro Erz                  Std: 25
+    detour-distance   Wie weit der Stein entfernt sein darf      Std: 4
+
+  Hinweis: Erze, die Baritone auf dem Weg mit abbaut, zählen auch zum
+  Limit. Deshalb kann es in einer Minute ganz knapp mehr werden, wenn
+  mehrere Erze direkt nebeneinander liegen.
+
 [Render] - Anzeige
   render              Vorhergesagte Erze markieren               Std: an
   render-limit        Max. Anzahl Markierungen (nächste zuerst)  Std: 300
@@ -181,7 +204,8 @@ HUD-Anzeige:
   Zeigt Status und Zähler dauerhaft auf dem Bildschirm.
 
 Chat-Befehle (Meteor-Präfix ist der Punkt):
-  .seedminer                Status anzeigen
+  .seedminer                Status anzeigen (bei Anti-Detection auch,
+                            wie viele Erze in der letzten Minute)
   .seedminer seed <seed>    manuellen Seed setzen
   .seedminer clear-seed     manuellen Seed löschen
                             (dann wird wieder SeedMapper benutzt)

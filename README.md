@@ -71,6 +71,10 @@ dauerhaft an, weil es Baritone einfach das nächste Erz gibt.
 | | `stop-when-full` | Abschalten, wenn das Inventar voll ist |
 | | `require-pickaxe` | Abschalten, wenn keine Spitzhacke in der Hotbar ist |
 | | `pause-near-players` / `player-range` | Pausieren, solange andere Spieler in der Nähe sind |
+| Anti-Detection | `anti-detection` | Hauptschalter; die Optionen darunter erscheinen nur, wenn er an ist (Gruppe ist eingeklappt, Klick auf die Überschrift klappt sie auf) |
+| | `max-ores-per-minute` | Höchstens so viele Erze in 60 Sekunden, dann wird gewartet (0 = kein Limit) |
+| | `random-pause` / `pause-min` / `pause-max` | Zufällige Pause nach jedem Erz (Sekunden) |
+| | `stone-detours` / `detour-chance` / `detour-distance` | Nach einem Erz mit X % Chance einen zufälligen Steinblock in der Nähe abbauen |
 | Render | `render`, `render-limit`, `shape-mode`, Farben, `tracer` | Markierung der vorhergesagten Erze |
 
 ### Befehl

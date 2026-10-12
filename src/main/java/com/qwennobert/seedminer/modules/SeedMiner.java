@@ -40,18 +40,22 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 public class SeedMiner extends Module {
@@ -59,6 +63,7 @@ public class SeedMiner extends Module {
     private final SettingGroup sgTargets = settings.createGroup("Targets");
     private final SettingGroup sgMining = settings.createGroup("Mining");
     private final SettingGroup sgSafety = settings.createGroup("Safety");
+    private final SettingGroup sgAntiDetection = settings.createGroup("Anti-Detection", false);
     private final SettingGroup sgRender = settings.createGroup("Render");
 
     // Seed
@@ -270,6 +275,81 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    // Anti-Detection
+
+    private final Setting<Boolean> antiDetection = sgAntiDetection.add(new BoolSetting.Builder()
+        .name("anti-detection")
+        .description("Makes the mining pattern less obvious: limits ores per minute, adds random pauses and stone detours.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Integer> maxOresPerMinute = sgAntiDetection.add(new IntSetting.Builder()
+        .name("max-ores-per-minute")
+        .description("Mine at most this many ores within any 60 seconds. 0 = no limit.")
+        .defaultValue(8)
+        .range(0, 120)
+        .sliderRange(0, 30)
+        .visible(antiDetection::get)
+        .build()
+    );
+
+    private final Setting<Boolean> randomPause = sgAntiDetection.add(new BoolSetting.Builder()
+        .name("random-pause")
+        .description("Wait a random time after each ore before going to the next one.")
+        .defaultValue(true)
+        .visible(antiDetection::get)
+        .build()
+    );
+
+    private final Setting<Double> pauseMin = sgAntiDetection.add(new DoubleSetting.Builder()
+        .name("pause-min")
+        .description("Shortest pause in seconds.")
+        .defaultValue(1.5)
+        .range(0, 120)
+        .sliderRange(0, 15)
+        .visible(() -> antiDetection.get() && randomPause.get())
+        .build()
+    );
+
+    private final Setting<Double> pauseMax = sgAntiDetection.add(new DoubleSetting.Builder()
+        .name("pause-max")
+        .description("Longest pause in seconds.")
+        .defaultValue(6)
+        .range(0, 120)
+        .sliderRange(0, 30)
+        .visible(() -> antiDetection.get() && randomPause.get())
+        .build()
+    );
+
+    private final Setting<Boolean> stoneDetours = sgAntiDetection.add(new BoolSetting.Builder()
+        .name("stone-detours")
+        .description("Sometimes mine a random stone block nearby after an ore instead of heading straight to the next one.")
+        .defaultValue(false)
+        .visible(antiDetection::get)
+        .build()
+    );
+
+    private final Setting<Integer> detourChance = sgAntiDetection.add(new IntSetting.Builder()
+        .name("detour-chance")
+        .description("Chance in percent to make a stone detour after an ore.")
+        .defaultValue(25)
+        .range(1, 100)
+        .sliderRange(1, 100)
+        .visible(() -> antiDetection.get() && stoneDetours.get())
+        .build()
+    );
+
+    private final Setting<Integer> detourDistance = sgAntiDetection.add(new IntSetting.Builder()
+        .name("detour-distance")
+        .description("How far away (blocks) the stone for a detour may be.")
+        .defaultValue(4)
+        .range(2, 8)
+        .sliderRange(2, 8)
+        .visible(() -> antiDetection.get() && stoneDetours.get())
+        .build()
+    );
+
     // Render
 
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
@@ -347,6 +427,14 @@ public class SeedMiner extends Module {
     private PredictedOre target;
     private int targetTicks, targetRetries, verifyTimer;
     private int mined, skipped, invalid;
+
+    // Anti-detection state
+    private final Random random = new Random();
+    /** Real time (ms) of recently mined ores, for the per-minute limit. */
+    private final Deque<Long> minedTimes = new ArrayDeque<>();
+    private long pauseUntil;
+    private BlockPos detourPos;
+    private int detourTicks;
     private boolean warnedNoSeed;
     private String status = "Idle";
 
@@ -365,6 +453,7 @@ public class SeedMiner extends Module {
 
         warnedNoSeed = false;
         lastScanCenter = null;
+        pauseUntil = 0;
         clearTarget();
         status = "Waiting for seed";
     }
@@ -376,6 +465,7 @@ public class SeedMiner extends Module {
             baritone.restore();
         }
         target = null;
+        detourPos = null;
         status = "Idle";
     }
 
@@ -512,7 +602,7 @@ public class SeedMiner extends Module {
             boolean gone = isGone(state);
             boolean drop;
             if (gone && seenOre.contains(ore.pos())) {
-                mined++;
+                countMined();
                 drop = true;
             }
             else {
@@ -556,9 +646,10 @@ public class SeedMiner extends Module {
         }
 
         if (pauseNearPlayers.get() && isPlayerNearby()) {
-            if (target != null) {
+            if (target != null || detourPos != null) {
                 baritone.stop();
                 target = null;
+                detourPos = null;
             }
             status = "Paused, player nearby";
             return false;
@@ -581,7 +672,7 @@ public class SeedMiner extends Module {
             if (gone || wrong) {
                 // Only an ore that was really there counts as mined. Otherwise the prediction was wrong
                 // (stone, cave, already mined), even if Baritone had to break the block to get there.
-                if (gone && seenOre.contains(pos)) mined++;
+                if (gone && seenOre.contains(pos)) countMined();
                 else invalid++;
                 finishTarget();
             }
@@ -605,9 +696,28 @@ public class SeedMiner extends Module {
                     finishTarget();
                 }
             }
+
+            if (target == null) onTargetDone();
+        }
+
+        if (detourPos != null) {
+            if (baritone.wasHijacked()) {
+                warning("Baritone was given another goal, pausing. Re-enable the module to continue.");
+                baritone.stop();
+                toggle();
+                return;
+            }
+            if (!updateDetour()) return;
         }
 
         if (target == null) {
+            String wait = antiDetectionWait();
+            if (wait != null) {
+                baritone.stop();
+                status = wait;
+                return;
+            }
+
             target = nextTarget();
 
             if (target == null) {
@@ -626,6 +736,103 @@ public class SeedMiner extends Module {
         }
 
         status = "Mining " + target.kind().name().toLowerCase().replace('_', ' ') + " at " + target.pos().toShortString();
+    }
+
+    // Anti-detection
+
+    private void countMined() {
+        mined++;
+        long now = System.currentTimeMillis();
+        minedTimes.addLast(now);
+        purgeMinedTimes(now);
+    }
+
+    private void purgeMinedTimes(long now) {
+        while (!minedTimes.isEmpty() && now - minedTimes.peekFirst() >= 60_000) minedTimes.removeFirst();
+    }
+
+    /** Called when the current target ore is done (mined, wrong or skipped): maybe a stone detour, then maybe a pause. */
+    private void onTargetDone() {
+        if (!antiDetection.get()) return;
+
+        if (stoneDetours.get() && random.nextInt(100) < detourChance.get() && startDetour()) return;
+        schedulePause();
+    }
+
+    private void schedulePause() {
+        if (!antiDetection.get() || !randomPause.get()) return;
+
+        double min = Math.min(pauseMin.get(), pauseMax.get());
+        double max = Math.max(pauseMin.get(), pauseMax.get());
+        pauseUntil = System.currentTimeMillis() + (long) ((min + random.nextDouble() * (max - min)) * 1000);
+    }
+
+    /** Picks a random stone block near the player and lets Baritone mine it. */
+    private boolean startDetour() {
+        BlockPos base = mc.player.getBlockPos();
+        int d = detourDistance.get();
+
+        for (int i = 0; i < 30; i++) {
+            BlockPos pos = base.add(random.nextInt(2 * d + 1) - d, random.nextInt(3) - 1, random.nextInt(2 * d + 1) - d);
+            if (pos.equals(base) || pos.equals(base.up()) || !isLoaded(pos) || ores.containsKey(pos)) continue;
+
+            BlockState state = mc.world.getBlockState(pos);
+            if (!state.isIn(BlockTags.BASE_STONE_OVERWORLD) && !state.isIn(BlockTags.BASE_STONE_NETHER)) continue;
+
+            detourPos = pos;
+            detourTicks = 0;
+            baritone.mine(pos);
+            status = "Detour (stone) at " + pos.toShortString();
+            return true;
+        }
+
+        return false;
+    }
+
+    /** Returns true when the detour is over. */
+    private boolean updateDetour() {
+        boolean gone = isGone(mc.world.getBlockState(detourPos));
+
+        // Give Baritone a moment to start, then end the detour once it is idle, the block is gone or it takes too long
+        if (gone || ++detourTicks > 20 * 20 || (detourTicks > 5 && !baritone.isWorking())) {
+            detourPos = null;
+            schedulePause();
+            return true;
+        }
+
+        status = "Detour (stone) at " + detourPos.toShortString();
+        return false;
+    }
+
+    /** Returns a status text while anti-detection wants to wait before the next ore, otherwise null. */
+    private String antiDetectionWait() {
+        if (!antiDetection.get()) return null;
+
+        long now = System.currentTimeMillis();
+        if (now < pauseUntil) return "Pause (" + seconds(pauseUntil - now) + "s)";
+
+        int limit = maxOresPerMinute.get();
+        if (limit > 0) {
+            purgeMinedTimes(now);
+            if (minedTimes.size() >= limit) {
+                return "Waiting (rate limit, " + seconds(60_000 - (now - minedTimes.peekFirst())) + "s)";
+            }
+        }
+
+        return null;
+    }
+
+    private static long seconds(long millis) {
+        return Math.max(1, (millis + 999) / 1000);
+    }
+
+    /** Short summary for the GUI, HUD and command, or null when anti-detection is off. */
+    public String antiDetectionInfo() {
+        if (!antiDetection.get()) return null;
+
+        purgeMinedTimes(System.currentTimeMillis());
+        int limit = maxOresPerMinute.get();
+        return "Last minute: " + minedTimes.size() + (limit > 0 ? "/" + limit : "") + " ores";
     }
 
     private PredictedOre nextTarget() {
@@ -663,6 +870,7 @@ public class SeedMiner extends Module {
     private void clearTarget() {
         if (baritone != null) baritone.stop();
         target = null;
+        detourPos = null;
     }
 
     private boolean isLoaded(BlockPos pos) {
@@ -730,6 +938,8 @@ public class SeedMiner extends Module {
         list.add(theme.label("Seed: " + (seed == null ? "none" : seed.seed() + " (" + seed.origin() + ")")));
         list.add(theme.label("Status: " + status));
         list.add(theme.label("Predicted: " + ores.size() + "  Mined: " + mined + "  Skipped: " + skipped + "  Invalid: " + invalid));
+        String antiDetection = antiDetectionInfo();
+        if (antiDetection != null) list.add(theme.label("Anti-Detection: " + antiDetection));
 
         WHorizontalList buttons = list.add(theme.horizontalList()).widget();
 

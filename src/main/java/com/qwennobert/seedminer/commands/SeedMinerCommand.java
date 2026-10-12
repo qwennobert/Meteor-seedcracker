@@ -55,6 +55,8 @@ public class SeedMinerCommand extends Command {
         info("Status: %s", module.status());
         info("Seed: %s", seed == null ? "none" : seed.seed() + " (" + seed.origin() + ")");
         info("Predicted: %d, mined: %d, skipped: %d, invalid: %d", module.predicted(), module.mined(), module.skipped(), module.invalid());
+        String antiDetection = module.antiDetectionInfo();
+        if (antiDetection != null) info("Anti-Detection: %s", antiDetection);
         return SINGLE_SUCCESS;
     }
 
