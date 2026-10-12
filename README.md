@@ -4,6 +4,8 @@ Seed Miner berechnet aus dem Welt-Seed, wo Erze liegen, und lässt sie von Barit
 Den Seed übernimmt das Addon aus [SeedMapper](https://github.com/xpple/SeedMapper) oder du gibst ihn selbst ein.
 Alle Parameter lassen sich in der Meteor-GUI einstellen.
 
+Eine ausführliche Schritt-für-Schritt-Anleitung findest du in [GUIDE.txt](GUIDE.txt).
+
 > Gedacht für den eigenen (self-hosted) Server oder Singleplayer. Auf öffentlichen Servern ist das Cheating und führt zum Bann.
 
 ## Wie es funktioniert

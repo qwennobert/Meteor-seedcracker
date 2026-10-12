@@ -1,0 +1,243 @@
+===============================================================================
+  SEED MINER - Anleitung
+  Meteor-Client-Addon für Minecraft 1.21.11
+===============================================================================
+
+Seed Miner berechnet aus dem Welt-Seed, wo Erze liegen (z. B. Diamanten oder
+Antiker Schrott), und lässt sie von Baritone automatisch abbauen. Alle
+Einstellungen machst du in der Meteor-GUI.
+
+Gedacht für den eigenen Server oder Singleplayer. Auf fremden Servern ist das
+Cheating und führt zum Bann.
+
+
+-------------------------------------------------------------------------------
+ 1. WAS DU BRAUCHST
+-------------------------------------------------------------------------------
+
+Alles in den "mods"-Ordner deiner Minecraft-1.21.11-Instanz legen:
+
+  [x] Fabric Loader 0.18.2 oder neuer
+  [x] Fabric API (für 1.21.11)
+  [x] Meteor Client 1.21.11
+  [x] SeedMapper 2.21.x                -> https://modrinth.com/mod/seedmapper
+  [x] Baritone, Meteor-Build 1.21.11   -> https://maven.meteordev.org
+                                          (ohne Baritone werden Erze nur
+                                           markiert, nicht abgebaut)
+  [x] seed-miner-0.1.0.jar             -> dieses Addon (siehe Abschnitt 2)
+
+WICHTIG - JAVA 23:
+  SeedMapper braucht für 1.21.11 Java 23 oder neuer. Mit Java 21 startet das
+  Spiel nicht.
+  Java z. B. von https://adoptium.net/temurin/releases/ installieren und im
+  Launcher bei der Instanz einstellen:
+    - Vanilla Launcher: Installationen -> Bearbeiten -> Weitere Optionen
+                        -> Java-Executable (unter Windows "javaw.exe")
+    - Prism Launcher:   Einstellungen -> Java -> Java-Laufzeit
+    - Modrinth App:     Instanz-Einstellungen -> Java und Speicher
+
+
+-------------------------------------------------------------------------------
+ 2. WO BEKOMME ICH DIE JAR?
+-------------------------------------------------------------------------------
+
+  a) GitHub: Repo -> "Releases" -> "Dev Build" -> seed-miner-*.jar
+     (wird bei jedem Push automatisch neu gebaut)
+
+  b) Selbst bauen:
+       ./gradlew build          (Windows: gradlew.bat build)
+     Die Jar liegt danach in build/libs/
+
+
+-------------------------------------------------------------------------------
+ 3. SCHNELLSTART (5 SCHRITTE)
+-------------------------------------------------------------------------------
+
+  1. Seed herausfinden. Auf deinem eigenen Server im Chat:
+         /seed
+
+  2. Seed in SeedMapper eintragen:
+         /sm:config Seed set <dein-seed>
+     Seed Miner übernimmt ihn automatisch.
+
+  3. Meteor-GUI öffnen: RECHTE UMSCHALTTASTE (Right Shift).
+     Kategorie "Seed Miner" -> Modul "seed-miner".
+
+  4. Rechtsklick auf das Modul öffnet die Einstellungen. Bei "blocks" die
+     gewünschten Erze auswählen (Standard: Diamant + Antiker Schrott).
+
+  5. Linksklick auf das Modul schaltet es ein. Baritone läuft bzw. gräbt jetzt
+     zum nächsten vorhergesagten Erz.
+
+  TIPP: Leg dir gleich eine Taste zum Ein-/Ausschalten fest (in den
+  Moduleinstellungen ganz oben "Bind"). Damit kannst du jederzeit stoppen.
+
+
+-------------------------------------------------------------------------------
+ 4. WOHER KOMMT DER SEED?
+-------------------------------------------------------------------------------
+
+Einstellung "seed-source":
+
+  Auto (Standard)  Ist "manual-seed" ausgefüllt, wird dieser Seed benutzt.
+                   Sonst wird SeedMapper gefragt.
+  Manual           Nur der Seed aus "manual-seed".
+  SeedMapper       Nur der Seed aus SeedMapper.
+
+SeedMapper sucht in dieser Reihenfolge:
+  1. /sm:config Seed set <seed>           (ein fester Seed)
+  2. /sm:config SavedSeeds add <seed>     (Seed pro Server gespeichert,
+                                           praktisch bei mehreren Servern)
+  3. SeedMappers Online-Datenbank
+
+Im Chat erscheint beim Start z. B.:
+  "Using seed 12345 from SeedMapper config."
+
+"large-biomes" einschalten, wenn die Welt mit "Große Biome" erstellt wurde.
+Sonst stimmen die Vorhersagen nicht.
+
+
+-------------------------------------------------------------------------------
+ 5. ALLE EINSTELLUNGEN
+-------------------------------------------------------------------------------
+
+[Seed]
+  seed-source         Auto / Manual / SeedMapper                 Std: Auto
+  manual-seed         Seed als Zahl, oder Text wie beim Welt-
+                      erstellen. Leer = Seed aus SeedMapper.     Std: leer
+  large-biomes        Welt mit "Große Biome" erstellt?           Std: aus
+
+[Targets] - was gesucht wird
+  blocks              Welche Erze. Möglich: Kohle, Kupfer, Eisen, Gold,
+                      Redstone, Lapis, Diamant, Smaragd, Roheisen-/
+                      Rohkupferblock, Nethergold, Netherquarz,
+                      Antiker Schrott. Stein- und Tiefenschiefer-Variante
+                      zählen gleich.                Std: Diamant, Antiker Schrott
+  ore-veins           Auch große Kupfer-/Eisenadern (langsamer)  Std: aus
+  chunk-radius        Wie viele Chunks um dich herum gescannt
+                      werden (0-16)                              Std: 4
+  min-y / max-y       Höhenbereich, z. B. für Diamanten
+                      -64 bis 16                                 Std: -64 / 320
+  follow-player       Neue Chunks scannen, während du dich
+                      bewegst                                    Std: an
+  verify              Off     = jede Vorhersage nehmen
+                      SkipAir = Positionen, die in Wirklichkeit
+                                Luft sind, verwerfen (empfohlen)
+                      Exact   = nur Blöcke, die wirklich das Erz
+                                sind (geht NICHT mit Anti-Xray)  Std: SkipAir
+
+[Mining] - wie abgebaut wird
+  auto-mine           Mit Baritone abbauen. Aus = nur markieren. Std: an
+  max-distance        Max. horizontale Entfernung zum Erz        Std: 96
+  vertical-cost       Wie stark Höhenunterschiede bei der Wahl
+                      des nächsten Erzes zählen. Höher = lieber
+                      auf deiner Ebene bleiben.                  Std: 2
+  target-timeout      Erz nach so vielen Sekunden überspringen   Std: 90
+  path-retries        Neue Versuche, wenn Baritone keinen Weg
+                      findet                                     Std: 2
+  configure-baritone  Setzt Baritones allowBreak=true (nötig!)
+                      und die zwei Optionen darunter. Wird beim
+                      Ausschalten zurückgesetzt.                 Std: an
+    allow-place       Baritone darf Blöcke setzen (Brücken,
+                      Lava abdecken)                             Std: an
+    allow-parkour     Baritone darf über Lücken springen         Std: aus
+  disable-when-done   Abschalten, wenn keine Erze mehr da sind.
+                      Sonst wartet es auf neue Chunks.           Std: aus
+
+[Safety] - Sicherheit
+  min-health          Abschalten bei so wenig Leben (0 = aus)    Std: 8
+  stop-when-full      Abschalten bei vollem Inventar             Std: an
+  require-pickaxe     Abschalten, wenn keine Spitzhacke in der
+                      Hotbar ist                                 Std: an
+  pause-near-players  Pausieren, wenn andere Spieler nah sind    Std: aus
+    player-range      Entfernung dafür                           Std: 32
+
+[Render] - Anzeige
+  render              Vorhergesagte Erze markieren               Std: an
+  render-limit        Max. Anzahl Markierungen (nächste zuerst)  Std: 300
+  shape-mode          Lines / Sides / Both                       Std: Both
+  side-color          Füllfarbe der Erze                         Std: hellblau
+  line-color          Linienfarbe der Erze                       Std: hellblau
+  target-color        Farbe des aktuellen Ziels                  Std: rot
+  tracer              Linie zum aktuellen Ziel                   Std: an
+
+
+-------------------------------------------------------------------------------
+ 6. MODULSEITE, HUD UND BEFEHLE
+-------------------------------------------------------------------------------
+
+Modulseite (Rechtsklick auf das Modul), ganz oben:
+  - Seed und Quelle, aktueller Status
+  - Zähler: Predicted (vorhergesagt), Mined (abgebaut),
+            Skipped (übersprungen), Invalid (falsche Vorhersage)
+  - Buttons:
+      Rescan       alles neu berechnen
+      Skip target  aktuelles Erz überspringen
+      Reset stats  Zähler zurücksetzen
+  (Die Werte werden beim Öffnen der Seite aktualisiert.)
+
+HUD-Anzeige:
+  Meteor-GUI -> Reiter "HUD" -> Element "seed-miner" hinzufügen.
+  Zeigt Status und Zähler dauerhaft auf dem Bildschirm.
+
+Chat-Befehle (Meteor-Präfix ist der Punkt):
+  .seedminer                Status anzeigen
+  .seedminer seed <seed>    manuellen Seed setzen
+  .seedminer clear-seed     manuellen Seed löschen
+                            (dann wird wieder SeedMapper benutzt)
+  .seedminer rescan         alles neu berechnen
+  .seedminer skip           aktuelles Erz überspringen
+
+
+-------------------------------------------------------------------------------
+ 7. TIPPS
+-------------------------------------------------------------------------------
+
+  - Nur Diamanten: bei "blocks" nur Diamanterz + Tiefenschiefer-Diamanterz
+    wählen, min-y = -64, max-y = 16.
+  - Antiker Schrott: im Nether einschalten, Höhe z. B. 8 bis 22.
+    Feuerresistenz mitnehmen!
+  - Gute Spitzhacke (Effizienz, Haltbarkeit, Reparatur) und Essen
+    mitnehmen. Baritone isst nicht von selbst.
+  - Ein paar Blöcke Bruchstein im Inventar helfen Baritone, Lava abzudecken
+    und Brücken zu bauen.
+  - Bei vielen Fehlversuchen "chunk-radius" verkleinern. Dann bleibt das Modul
+    näher an geladenen Chunks, wo "verify" falsche Vorhersagen aussortiert.
+
+
+-------------------------------------------------------------------------------
+ 8. PROBLEME
+-------------------------------------------------------------------------------
+
+Spiel startet nicht / "requires java >= 23"
+  -> Instanz auf Java 23 oder neuer umstellen (siehe Abschnitt 1).
+
+"No seed available"
+  -> /sm:config Seed set <seed> ausführen oder "manual-seed" ausfüllen.
+
+Status "No ores in range"
+  -> In der Nähe gibt es keine (übrigen) Erze. "max-distance" oder
+     "chunk-radius" erhöhen, Höhenbereich und "blocks" prüfen oder ein
+     Stück weiterlaufen.
+
+Viele "Invalid"/"Skipped"
+  -> Normal in gewissem Maß: Die Vorhersage weiß nicht, ob ein Erz an einer
+     Höhle liegt (dann generiert Minecraft es oft nicht). Vor allem bei
+     Kohle, Kupfer und Smaragd ist sie ungenauer.
+  -> Falscher Seed oder "large-biomes" falsch gesetzt? Dann stimmt gar
+     nichts. Seed mit /seed prüfen.
+  -> Server mit anderer Version als 1.21.11 (z. B. über ViaFabricPlus):
+     Die Vorhersage passt dann nicht.
+
+Erze werden nur markiert, aber nicht abgebaut
+  -> Baritone (Meteor-Build) installiert? "auto-mine" an?
+
+Modul schaltet sich ab mit "Baritone was given another goal"
+  -> Du hast Baritone einen anderen Befehl gegeben (z. B. #mine, #goto).
+     Modul einfach wieder einschalten.
+
+Modul stoppen
+  -> Modul ausschalten (Taste oder Klick in der GUI). Baritones "#stop"
+     reicht nicht: Das Modul gibt Baritone danach einfach das nächste Erz.
+
+===============================================================================
