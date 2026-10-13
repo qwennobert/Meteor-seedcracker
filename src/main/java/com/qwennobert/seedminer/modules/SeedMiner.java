@@ -890,7 +890,7 @@ public class SeedMiner extends Module {
         }
 
         if (timeLimit.get() > 0 && System.currentTimeMillis() - startedAt >= timeLimit.get() * 60_000L) {
-            stop("Time limit of " + timeLimit.get() + " minutes reached", leaveAtTimeLimit.get());
+            stop("Time limit of " + timeLimit.get() + (timeLimit.get() == 1 ? " minute" : " minutes") + " reached", leaveAtTimeLimit.get());
             return false;
         }
 
