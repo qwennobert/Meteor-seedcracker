@@ -923,7 +923,9 @@ public class SeedMiner extends Module {
                     baritoneStopped = false;
                     baritone.mine(pos);
                 }
-                // Ask again after a moment (1 s, 2 s, ...), e.g. right after a teleport the chunks are still loading
+                // Right after a teleport Baritone finds no way until the chunks around you have arrived, that's no failure
+                else if (!isAreaLoaded(mc.player.getBlockPos())) retryWaitTicks = 0;
+                // Ask again after a moment (1 s, 2 s, ...)
                 else if (++retryWaitTicks >= 20 * (targetRetries + 1)) {
                     retryWaitTicks = 0;
                     if (targetRetries++ < retries.get()) baritone.mine(pos);
@@ -1356,6 +1358,17 @@ public class SeedMiner extends Module {
 
     private boolean isLoaded(BlockPos pos) {
         return mc.world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
+    /** The chunk of the position and the ones around it are loaded. */
+    private boolean isAreaLoaded(BlockPos pos) {
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                if (!mc.world.getChunkManager().isChunkLoaded(cx + x, cz + z)) return false;
+            }
+        }
+        return true;
     }
 
     private boolean hasPickaxe() {
