@@ -4,6 +4,13 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.29 — 2026-10-13
+
+### Fixed
+- Auto compress never crafted: every spot counted as "no free spot for the crafting table", because the check
+  for whether the top of the block is visible aimed exactly at its surface and a ray that ends on a surface
+  doesn't hit it. It now aims just inside the block.
+
 ## 0.2.0+build.28 — 2026-10-13
 
 ### Added

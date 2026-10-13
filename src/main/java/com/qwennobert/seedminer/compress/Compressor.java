@@ -462,7 +462,8 @@ public final class Compressor {
             BlockPos support = pos.down();
             if (!mc.world.getBlockState(support).isSideSolidFullSquare(mc.world, support, Direction.UP)) continue;
 
-            Vec3d top = Vec3d.ofCenter(support).add(0, 0.5, 0);
+            // Aim just inside the block: a ray that ends exactly on the face doesn't hit it
+            Vec3d top = Vec3d.ofCenter(support).add(0, 0.49, 0);
             if (eyes.distanceTo(top) > reach) continue;
 
             BlockHitResult hit = raycast(eyes, top);
@@ -472,7 +473,7 @@ public final class Compressor {
             double score = dx * dx + dz * dz + dy * dy * 2;
             if (score < bestScore) {
                 bestScore = score;
-                best = new BlockHitResult(top, Direction.UP, support.toImmutable(), false);
+                best = hit;
             }
         }
         return best;
