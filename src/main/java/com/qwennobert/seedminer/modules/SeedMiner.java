@@ -222,8 +222,8 @@ public class SeedMiner extends Module {
 
     private final Setting<Integer> targetTimeout = sgMining.add(new IntSetting.Builder()
         .name("target-timeout")
-        .description("Skip an ore if it wasn't mined after this many seconds.")
-        .defaultValue(90)
+        .description("Skip an ore if you get no closer to it for this many seconds.")
+        .defaultValue(60)
         .range(5, 600)
         .sliderRange(10, 300)
         .build()
@@ -231,7 +231,7 @@ public class SeedMiner extends Module {
 
     private final Setting<Integer> retries = sgMining.add(new IntSetting.Builder()
         .name("path-retries")
-        .description("How often to retry an ore when Baritone gives up on the path.")
+        .description("How often to retry an ore when Baritone gives up on the path without getting closer.")
         .defaultValue(2)
         .range(0, 10)
         .sliderRange(0, 5)
@@ -530,6 +530,10 @@ public class SeedMiner extends Module {
 
     private PredictedOre target;
     private int targetTicks, targetRetries, verifyTimer;
+    /** Closest the eyes got to the current target, getting closer resets the timeout and the retries. */
+    private double targetBestDistance;
+    /** Baritone was stopped to break a block directly, so it stopping is not a failed path. */
+    private boolean baritoneStopped;
     private int mined, skipped, invalid;
 
     // Anti-detection state
@@ -871,6 +875,14 @@ public class SeedMiner extends Module {
             boolean trusted = loaded && isTrusted(pos);
             if (trusted && target.kind().matches(state.getBlock())) seenOre.add(pos);
 
+            // Getting closer is progress: the timeout and the path retries only count while you get nowhere
+            double distance = mc.player.getEyePos().distanceTo(Vec3d.ofCenter(pos));
+            if (distance < targetBestDistance - 1) {
+                targetBestDistance = distance;
+                targetTicks = 0;
+                targetRetries = 0;
+            }
+
             boolean gone = loaded && isGone(state);
             boolean wrong = loaded && !gone && ((trusted && verifyMode.get() == VerifyMode.Exact && !target.kind().matches(state.getBlock())) || isUnbreakable(state, pos));
 
@@ -884,16 +896,16 @@ public class SeedMiner extends Module {
                 else invalid++;
                 finishTarget();
             }
-            else if (loaded && ((directHit = findReachableFace(pos)) != null || (directHit = findBlockInTheWay(pos)) != null)) {
+            else if (loaded && mc.player.isOnGround() && ((directHit = findReachableFace(pos)) != null || (directHit = findBlockInTheWay(pos)) != null)) {
                 // In reach: break it from here, or first the block that hides it. Baritone's goal is to stand inside
                 // the ore, which can be impossible (e.g. ore above your head and no blocks to pillar up with).
-                if (baritone.isWorking()) baritone.stop();
-                breakDirectly(directHit);
-                if (++targetTicks > targetTimeout.get() * 20) {
-                    warning("Could not mine ore at %s in time, skipping.", pos.toShortString());
-                    skipped++;
-                    finishTarget();
+                // Only while standing, in the middle of a jump (pillaring up) the ore is out of reach again a moment later.
+                if (baritone.isWorking()) {
+                    baritone.stop();
+                    baritoneStopped = true;
                 }
+                breakDirectly(directHit);
+                if (++targetTicks > targetTimeout.get() * 20) skipNoProgress(pos);
             }
             else if (baritone.wasHijacked()) {
                 warning("Baritone was given another goal, pausing. Re-enable the module to continue.");
@@ -901,14 +913,15 @@ public class SeedMiner extends Module {
                 toggle();
                 return;
             }
-            else if (++targetTicks > targetTimeout.get() * 20) {
-                warning("Could not mine ore at %s in time, skipping.", pos.toShortString());
-                skipped++;
-                finishTarget();
-            }
+            else if (++targetTicks > targetTimeout.get() * 20) skipNoProgress(pos);
             else if (!baritone.isWorking()) {
-                // Baritone reached the goal without the block breaking, or could not find a path
-                if (targetRetries++ < retries.get()) baritone.mine(pos);
+                // Baritone reached the goal without the block breaking, or could not find a path. If it was stopped
+                // here to break a block directly, it simply continues.
+                if (baritoneStopped) {
+                    baritoneStopped = false;
+                    baritone.mine(pos);
+                }
+                else if (targetRetries++ < retries.get()) baritone.mine(pos);
                 else {
                     warning("Baritone could not reach ore at %s, skipping.", pos.toShortString());
                     skipped++;
@@ -983,6 +996,8 @@ public class SeedMiner extends Module {
 
             targetTicks = 0;
             targetRetries = 0;
+            targetBestDistance = Double.MAX_VALUE;
+            baritoneStopped = false;
             baritone.mine(target.pos());
         }
 
@@ -1300,6 +1315,12 @@ public class SeedMiner extends Module {
         }
 
         return sizes;
+    }
+
+    private void skipNoProgress(BlockPos pos) {
+        warning("Got no closer to ore at %s for %d seconds, skipping.", pos.toShortString(), targetTimeout.get());
+        skipped++;
+        finishTarget();
     }
 
     private void finishTarget() {

@@ -156,8 +156,12 @@ Otherwise the predictions are wrong.
                           ore, e.g. a vein of 4 ores 20 blocks away
                           beats a single ore 10 blocks away
                       Higher = prefer veins even more.           Default: 1
-  target-timeout      Skip an ore after this many seconds        Default: 90
-  path-retries        Retries when Baritone can't find a path    Default: 2
+  target-timeout      Skip an ore when you get no closer to it
+                      for this many seconds. A long way that
+                      makes progress is never cut off.           Default: 60
+  path-retries        Retries when Baritone can't find a path.
+                      Start again from 0 whenever you got
+                      closer to the ore.                         Default: 2
   collect-drops       Walk to the drops of mined ores (diamonds,
                       raw iron, ...) before moving on, so none
                       are left behind                            Default: on
