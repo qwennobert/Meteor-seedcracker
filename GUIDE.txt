@@ -182,7 +182,8 @@ Otherwise the predictions are wrong.
   without Baritone (status "... (in reach)"). If other blocks hide the ore,
   those are mined first (status "... (uncovering)"), but never the block
   you stand on, and never a block next to water or lava or under sand or
-  gravel. Then Baritone takes over as usual.
+  gravel. Ores that touch water or lava are left to Baritone, which has
+  its own safety rules for that. Then Baritone takes over as usual.
 
 [Auto Tool] - which tool is used
   The module picks the tool for every block Baritone breaks (Baritone's own

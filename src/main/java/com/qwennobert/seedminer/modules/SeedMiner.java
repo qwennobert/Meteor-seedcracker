@@ -897,10 +897,11 @@ public class SeedMiner extends Module {
                 else invalid++;
                 finishTarget();
             }
-            else if (loaded && mc.player.isOnGround() && ((directHit = findReachableFace(pos)) != null || (directHit = findBlockInTheWay(pos)) != null)) {
+            else if (loaded && mc.player.isOnGround() && !touchesFluid(pos) && ((directHit = findReachableFace(pos)) != null || (directHit = findBlockInTheWay(pos)) != null)) {
                 // In reach: break it from here, or first the block that hides it. Baritone's goal is to stand inside
                 // the ore, which can be impossible (e.g. ore above your head and no blocks to pillar up with).
                 // Only while standing, in the middle of a jump (pillaring up) the ore is out of reach again a moment later.
+                // Not when water or lava touches the ore, it would flow out towards you. Baritone has its own rules for that.
                 if (baritone.isWorking()) {
                     baritone.stop();
                     baritoneStopped = true;
@@ -1227,10 +1228,14 @@ public class SeedMiner extends Module {
         if (new Box(box.minX, box.minY - 0.5, box.minZ, box.maxX, box.minY, box.maxZ).intersects(new Box(pos))) return false;
 
         // No water or lava flowing in, no sand or gravel coming down
+        return !touchesFluid(pos) && !(mc.world.getBlockState(pos.up()).getBlock() instanceof FallingBlock);
+    }
+
+    private boolean touchesFluid(BlockPos pos) {
         for (Direction direction : Direction.values()) {
-            if (!mc.world.getFluidState(pos.offset(direction)).isEmpty()) return false;
+            if (!mc.world.getFluidState(pos.offset(direction)).isEmpty()) return true;
         }
-        return !(mc.world.getBlockState(pos.up()).getBlock() instanceof FallingBlock);
+        return false;
     }
 
     /** Looks at the block and keeps mining it, like holding the attack key. */
