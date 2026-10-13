@@ -146,16 +146,18 @@ Otherwise the predictions are wrong.
   auto-mine           Mine with Baritone. Off = highlight only.  Default: on
   max-distance        Max. horizontal distance to an ore         Default: 96
   vertical-cost       How much height differences count when
-                      picking the next ore. Higher = prefer
-                      staying on your level.                     Default: 2
+                      picking the next ore. 1 = plain 3D
+                      distance. Higher = prefer staying on your
+                      level.                                     Default: 1.5
   vein-priority       How much groups of ores (veins) are
                       preferred over single ores. Ores at most 2
                       blocks apart count as one group.
-                      0 = always the nearest ore
-                      1 = the group with the least walking per
-                          ore, e.g. a vein of 4 ores 20 blocks away
-                          beats a single ore 10 blocks away
-                      Higher = prefer veins even more.           Default: 1
+                      0   = always the nearest ore
+                      0.5 = a group of 4 ores may be twice as
+                            far away as a single ore
+                      1   = the group with the least walking per
+                            ore (a group of 4 may be 4x as far)
+                      Higher = prefer veins even more.           Default: 0.5
   target-timeout      Skip an ore when you get no closer to it
                       for this many seconds. A long way that
                       makes progress is never cut off.           Default: 60

@@ -204,8 +204,8 @@ public class SeedMiner extends Module {
 
     private final Setting<Double> verticalCost = sgMining.add(new DoubleSetting.Builder()
         .name("vertical-cost")
-        .description("Multiplier for height differences when choosing the next ore. Higher values prefer ores on your level.")
-        .defaultValue(2)
+        .description("How much height differences count when choosing the next ore. 1 = plain 3D distance, higher values prefer ores on your level.")
+        .defaultValue(1.5)
         .range(0, 10)
         .sliderRange(0, 5)
         .build()
@@ -213,8 +213,8 @@ public class SeedMiner extends Module {
 
     private final Setting<Double> veinPriority = sgMining.add(new DoubleSetting.Builder()
         .name("vein-priority")
-        .description("How much groups of ores are preferred over single ores. 0 = always the nearest ore, 1 = the group with the least walking per ore.")
-        .defaultValue(1)
+        .description("How much groups of ores are preferred over single ores. 0 = always the nearest ore, 0.5 = a group of 4 may be twice as far away, 1 = the group with the least walking per ore.")
+        .defaultValue(0.5)
         .range(0, 3)
         .sliderRange(0, 2)
         .build()
@@ -529,7 +529,7 @@ public class SeedMiner extends Module {
     private boolean paramsDirty = true;
 
     private PredictedOre target;
-    private int targetTicks, targetRetries, verifyTimer;
+    private int targetTicks, targetRetries, retryWaitTicks, verifyTimer;
     /** Closest the eyes got to the current target, getting closer resets the timeout and the retries. */
     private double targetBestDistance;
     /** Baritone was stopped to break a block directly, so it stopping is not a failed path. */
@@ -881,6 +881,7 @@ public class SeedMiner extends Module {
                 targetBestDistance = distance;
                 targetTicks = 0;
                 targetRetries = 0;
+                retryWaitTicks = 0;
             }
 
             boolean gone = loaded && isGone(state);
@@ -921,11 +922,15 @@ public class SeedMiner extends Module {
                     baritoneStopped = false;
                     baritone.mine(pos);
                 }
-                else if (targetRetries++ < retries.get()) baritone.mine(pos);
-                else {
-                    warning("Baritone could not reach ore at %s, skipping.", pos.toShortString());
-                    skipped++;
-                    finishTarget();
+                // Ask again after a moment (1 s, 2 s, ...), e.g. right after a teleport the chunks are still loading
+                else if (++retryWaitTicks >= 20 * (targetRetries + 1)) {
+                    retryWaitTicks = 0;
+                    if (targetRetries++ < retries.get()) baritone.mine(pos);
+                    else {
+                        warning("Baritone could not reach ore at %s, skipping.", pos.toShortString());
+                        skipped++;
+                        finishTarget();
+                    }
                 }
             }
 
@@ -996,6 +1001,7 @@ public class SeedMiner extends Module {
 
             targetTicks = 0;
             targetRetries = 0;
+            retryWaitTicks = 0;
             targetBestDistance = Double.MAX_VALUE;
             baritoneStopped = false;
             baritone.mine(target.pos());
@@ -1252,7 +1258,9 @@ public class SeedMiner extends Module {
             double horizontalSq = dx * dx + dz * dz;
             if (horizontalSq > maxDistSq) continue;
 
-            double cost = Math.sqrt(horizontalSq) + Math.abs(dy) * verticalCost.get();
+            // Distance with height weighted, like the way there: diagonally down counts as far as it really is
+            double vertical = dy * verticalCost.get();
+            double cost = Math.sqrt(horizontalSq + vertical * vertical);
 
             // Prefer groups of ores over single ones: with vein-priority 1 this is the walking distance per ore
             if (veinSizes != null) cost /= Math.pow(veinSizes.get(pos), veinPriority.get());

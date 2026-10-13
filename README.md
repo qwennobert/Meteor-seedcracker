@@ -67,8 +67,8 @@ because the module simply gives Baritone the next ore.
 | | `verify` | `Off`, `SkipAir` (default), `Exact` (also drop positions that are not the ore; with `server-anti-xray` only blocks that touch air are checked) |
 | Mining | `auto-mine` | Mine with Baritone, or only highlight |
 | | `max-distance` | Maximum horizontal distance to an ore |
-| | `vertical-cost` | How much height differences count when picking the next ore |
-| | `vein-priority` | How much groups of ores are preferred over single ores (0 = always the nearest ore, 1 = least walking per ore) |
+| | `vertical-cost` | How much height differences count when picking the next ore (1 = plain 3D distance) |
+| | `vein-priority` | How much groups of ores are preferred over single ores (0 = always the nearest ore, 0.5 = a group of 4 may be twice as far away, 1 = least walking per ore) |
 | | `target-timeout` | Skip an ore when you get no closer to it for N seconds |
 | | `path-retries` | Retries when Baritone can't find a path (start again from 0 whenever you got closer) |
 | | `collect-drops` / `collect-radius` / `collect-timeout` | Walk to the drops of mined ores before moving on, so none are left behind |
