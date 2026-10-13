@@ -524,6 +524,27 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> dropJunk = sgAutoCompress.add(new BoolSetting.Builder()
+        .name("drop-junk")
+        .description("Before crafting, throw out junk (stone, deepslate, gravel, ...) until there is room, keeping one stack of building blocks for Baritone. Otherwise junk lying around is picked up into the freed slots and the crafting table doesn't fit back in. Off: only craft when no junk lies next to you.")
+        .defaultValue(true)
+        .visible(autoCompress::get)
+        .build()
+    );
+
+    private final Setting<List<Item>> junkItems = sgAutoCompress.add(new ItemListSetting.Builder()
+        .name("junk-items")
+        .description("Items that may be thrown out to make room.")
+        .defaultValue(
+            Items.COBBLESTONE, Items.COBBLED_DEEPSLATE, Items.STONE, Items.DEEPSLATE, Items.TUFF, Items.DIORITE, Items.GRANITE,
+            Items.ANDESITE, Items.CALCITE, Items.DRIPSTONE_BLOCK, Items.POINTED_DRIPSTONE, Items.GRAVEL, Items.FLINT, Items.DIRT,
+            Items.SAND, Items.NETHERRACK, Items.BASALT, Items.SMOOTH_BASALT, Items.BLACKSTONE, Items.SOUL_SAND, Items.SOUL_SOIL,
+            Items.END_STONE
+        )
+        .visible(() -> autoCompress.get() && dropJunk.get())
+        .build()
+    );
+
     private final Setting<Integer> compressDelayMin = sgAutoCompress.add(new IntSetting.Builder()
         .name("action-delay-min")
         .description("Shortest pause between two actions (placing, opening, clicking, ...) in milliseconds.")
@@ -1226,7 +1247,7 @@ public class SeedMiner extends Module {
     }
 
     private Compressor.Options compressOptions() {
-        return new Compressor.Options(compressItems.get(), showCraftingGui.get(), compressDelayMin.get(), compressDelayMax.get());
+        return new Compressor.Options(compressItems.get(), showCraftingGui.get(), compressDelayMin.get(), compressDelayMax.get(), dropJunk.get(), junkItems.get());
     }
 
     private int freeSlots() {

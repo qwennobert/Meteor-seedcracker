@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gui.screen.recipebook.RecipeResultCollection;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -48,16 +49,21 @@ import java.util.function.Consumer;
  * hidden ("silent") only the drawing is skipped, the window is really open.
  */
 public final class Compressor {
-    public record Options(List<Item> items, boolean showGui, int delayMin, int delayMax) {
+    public record Options(List<Item> items, boolean showGui, int delayMin, int delayMax, boolean dropJunk, List<Item> junk) {
     }
 
     private enum State {
-        TO_HOTBAR, CLOSE_INVENTORY, SELECT, AIM_PLACE, PLACE, WAIT_PLACED, AIM_OPEN, OPEN, WAIT_OPEN,
+        AIM_THROW, THROW, SETTLE, CLOSE_INVENTORY, TO_HOTBAR, SELECT, AIM_PLACE, PLACE, WAIT_PLACED, AIM_OPEN, OPEN, WAIT_OPEN,
         CRAFT, WAIT_GRID, TAKE, WAIT_TAKEN, CLOSE, AIM_BREAK, BREAK, WAIT_DROP, PICKUP
     }
 
     private static final long COOLDOWN_MS = 60_000;
     private static final int MAX_ROUNDS = 12;
+    /** Free slots wanted before the table is placed: one for the table, one for the crafted blocks. */
+    private static final int ROOM = 2;
+    private static final int MAX_THROWS = 10;
+    /** Kept when throwing out junk, so Baritone still has blocks to build with. */
+    private static final List<Item> BUILDING_BLOCKS = List.of(Items.COBBLESTONE, Items.NETHERRACK, Items.COBBLED_DEEPSLATE, Items.DIRT, Items.STONE, Items.END_STONE);
 
     private final MinecraftClient mc;
     private final BaritoneControl baritone;
@@ -77,6 +83,9 @@ public final class Compressor {
     private boolean tablePlaced;
     private ItemEntity tableDrop;
     private int pickupRetries;
+    private Vec3d throwTarget;
+    private int throwsLeft, pickupThrows;
+    private boolean swapped;
     /** Crafting tables in the inventory before placing one, to notice when it is back. */
     private int tableCount;
 
@@ -103,11 +112,18 @@ public final class Compressor {
         return isActive() && !options.showGui() && screen instanceof CraftingScreen;
     }
 
-    /** Everything needed is there: a crafting table, enough items with a known recipe and a spot for the table. */
+    /**
+     * Everything needed is there: a crafting table, enough items with a known recipe, crafting frees at least one
+     * slot, there is a spot for the table and room in the inventory (or junk to throw out).
+     */
     public boolean canStart(Options options) {
         if (System.currentTimeMillis() < cooldownUntil) return false;
         if (!mc.player.isOnGround() || mc.player.isTouchingWater() || mc.player.isInLava() || mc.player.isSneaking()) return false;
-        if (findTable() < 0 || nextCompressible(options) == null) return false;
+        if (findTable() < 0 || nextCompressible(options) == null || slotsSaved(options) < 1) return false;
+
+        // Junk lying next to you is picked up the moment a slot gets free: then there is no room for the table
+        if (!options.dropJunk() && junkInReach(options)) return false;
+        if (options.dropJunk() && freeSlots() < ROOM && junkSlot(options) < 0 && freeSlots() < 1) return false;
 
         if (findPlaceSpot() == null) {
             if (!warnedNoSpace) warning.accept("Auto compress: no free spot for the crafting table here, trying again later.");
@@ -126,8 +142,18 @@ public final class Compressor {
         tablePlaced = false;
         tableDrop = null;
         pickupRetries = 0;
+        pickupThrows = 0;
+        swapped = false;
+        throwsLeft = MAX_THROWS;
         rounds = 0;
         tableCount = mc.player.getInventory().count(Items.CRAFTING_TABLE);
+
+        // Make room first, otherwise junk lying around takes the slots that crafting frees
+        if (options.dropJunk() && freeSlots() < ROOM && (throwTarget = findThrowTarget()) != null) set(State.AIM_THROW);
+        else afterRoom();
+    }
+
+    private void afterRoom() {
         set(SlotUtils.isHotbar(findTable()) ? State.SELECT : State.TO_HOTBAR);
     }
 
@@ -154,6 +180,10 @@ public final class Compressor {
 
         // Turning the head happens every tick, everything else after a short random pause
         switch (state) {
+            case AIM_THROW -> {
+                if (aim(throwTarget)) set(State.THROW);
+                return status();
+            }
             case AIM_PLACE -> {
                 if (aim(placeHit.getPos())) set(State.PLACE);
                 return status();
@@ -178,20 +208,41 @@ public final class Compressor {
         if (System.currentTimeMillis() < nextActionAt) return status();
 
         switch (state) {
+            case THROW -> {
+                if (freeSlots() >= ROOM) {
+                    set(State.CLOSE_INVENTORY);
+                    break;
+                }
+                int slot = junkSlot(options);
+                if (slot < 0 || throwsLeft-- <= 0) {
+                    if (freeSlots() >= 1) set(State.CLOSE_INVENTORY);
+                    else fail("no room in the inventory and no junk to throw out");
+                    break;
+                }
+                // Like Ctrl+Q over the stack in the inventory: it flies off where you look
+                if (options.showGui() && !(mc.currentScreen instanceof InventoryScreen)) mc.setScreen(new InventoryScreen(mc.player));
+                mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId, SlotUtils.indexToId(slot), 1, SlotActionType.THROW, mc.player);
+                set(State.SETTLE);
+            }
+            case SETTLE -> {
+                // Junk lying next to you is picked up into the slot that just got free; wait for that, then look again
+                if (stateTicks >= 15) set(State.THROW);
+            }
             case TO_HOTBAR -> {
                 // Like pressing a number key over the table in the inventory
                 int from = findTable();
-                if (from < 0) {
-                    fail("no crafting table in the inventory");
+                if (from < 0 || swapped) {
+                    fail(from < 0 ? "no crafting table in the inventory" : "could not move the crafting table into the hotbar");
                     break;
                 }
+                swapped = true;
                 if (options.showGui()) mc.setScreen(new InventoryScreen(mc.player));
                 mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId, SlotUtils.indexToId(from), freeHotbarSlot(), SlotActionType.SWAP, mc.player);
                 set(State.CLOSE_INVENTORY);
             }
             case CLOSE_INVENTORY -> {
                 mc.player.closeHandledScreen();
-                set(State.SELECT);
+                afterRoom();
             }
             case SELECT -> {
                 int slot = findTable();
@@ -325,6 +376,18 @@ public final class Compressor {
             return;
         }
 
+        // Junk took the room meanwhile: throw out one stack, the table can be picked up first (shorter pickup delay)
+        if (!hasRoomFor(Items.CRAFTING_TABLE) && options.dropJunk() && pickupThrows < 3) {
+            int slot = junkSlot(options);
+            if (slot >= 0) {
+                pickupThrows++;
+                mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId, SlotUtils.indexToId(slot), 1, SlotActionType.THROW, mc.player);
+                mc.player.closeHandledScreen();
+                nextActionAt = System.currentTimeMillis() + 500;
+                return;
+            }
+        }
+
         if (!baritone.isWorking()) {
             if (mc.player.getBoundingBox().expand(0.8, 0.4, 0.8).intersects(tableDrop.getBoundingBox())) return;
             if (pickupRetries++ < 3) baritone.walkTo(tableDrop.getBlockPos());
@@ -372,7 +435,8 @@ public final class Compressor {
     private String status() {
         if (state == null) return "Compressing: done";
         return switch (state) {
-            case TO_HOTBAR, CLOSE_INVENTORY, SELECT, AIM_PLACE, PLACE, WAIT_PLACED -> "Compressing: placing crafting table";
+            case AIM_THROW, THROW, SETTLE -> "Compressing: making room";
+            case CLOSE_INVENTORY, TO_HOTBAR, SELECT, AIM_PLACE, PLACE, WAIT_PLACED -> "Compressing: placing crafting table";
             case AIM_OPEN, OPEN, WAIT_OPEN -> "Compressing: opening crafting table";
             case CRAFT, WAIT_GRID, TAKE, WAIT_TAKEN, CLOSE -> "Compressing: crafting" + (current != null ? " " + current.result.getName().getString() : "");
             case AIM_BREAK, BREAK, WAIT_DROP, PICKUP -> "Compressing: picking up crafting table";
@@ -420,6 +484,102 @@ public final class Compressor {
             }
         }
         return null;
+    }
+
+    /** How many inventory slots crafting the selected items into blocks would free. */
+    private int slotsSaved(Options options) {
+        int saved = 0;
+        for (Item item : options.items()) {
+            Compressible c = Compressible.of(item);
+            if (c == null || warnedNoRecipe.contains(item)) continue;
+
+            int count = 0, slots = 0, resultRoom = 0;
+            for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+                ItemStack stack = mc.player.getInventory().getStack(i);
+                if (stack.isOf(c.item)) {
+                    count += stack.getCount();
+                    slots++;
+                }
+                else if (stack.isOf(c.result)) resultRoom += stack.getMaxCount() - stack.getCount();
+            }
+
+            int results = count / c.count;
+            if (results == 0) continue;
+            int rest = count - results * c.count;
+            int restSlots = (rest + c.item.getMaxCount() - 1) / c.item.getMaxCount();
+            int resultSlots = (Math.max(0, results - resultRoom) + c.result.getMaxCount() - 1) / c.result.getMaxCount();
+            saved += slots - restSlots - resultSlots;
+        }
+        return saved;
+    }
+
+    private int freeSlots() {
+        int free = 0;
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            if (mc.player.getInventory().getStack(i).isEmpty()) free++;
+        }
+        return free;
+    }
+
+    /** The item can be picked up: a free slot, or a stack of it with room. */
+    private boolean hasRoomFor(Item item) {
+        if (freeSlots() > 0) return true;
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (stack.isOf(item) && stack.getCount() < stack.getMaxCount()) return true;
+        }
+        return false;
+    }
+
+    /** The biggest junk stack to throw out, keeping one stack of building blocks for Baritone. -1 if there is none. */
+    private int junkSlot(Options options) {
+        int keep = -1;
+        for (Item building : BUILDING_BLOCKS) {
+            int best = -1;
+            for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+                ItemStack stack = mc.player.getInventory().getStack(i);
+                if (stack.isOf(building) && (best < 0 || stack.getCount() > mc.player.getInventory().getStack(best).getCount())) best = i;
+            }
+            if (best >= 0) {
+                keep = best;
+                break;
+            }
+        }
+
+        int slot = -1;
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (i == keep || stack.isEmpty() || !options.junk().contains(stack.getItem())) continue;
+            if (slot < 0 || stack.getCount() > mc.player.getInventory().getStack(slot).getCount()) slot = i;
+        }
+        return slot;
+    }
+
+    /** Junk lying close enough to be picked up as soon as a slot is free. */
+    private boolean junkInReach(Options options) {
+        Box reach = mc.player.getBoundingBox().expand(2, 1.5, 2);
+        for (Entity entity : mc.world.getEntities()) {
+            if (entity instanceof ItemEntity item && options.junk().contains(item.getStack().getItem()) && reach.intersects(item.getBoundingBox())) return true;
+        }
+        return false;
+    }
+
+    /** A point to throw junk at: the direction with the most free room in front, so it isn't picked up again. */
+    private Vec3d findThrowTarget() {
+        Vec3d eyes = mc.player.getEyePos();
+        Vec3d best = null;
+        double bestDistance = 0;
+        for (int i = 0; i < 16; i++) {
+            double yaw = Math.toRadians(i * 22.5);
+            Vec3d direction = new Vec3d(-Math.sin(yaw), 0, Math.cos(yaw));
+            BlockHitResult hit = raycast(eyes, eyes.add(direction.multiply(6)));
+            double distance = hit.getType() == HitResult.Type.MISS ? 6 : hit.getPos().distanceTo(eyes);
+            if (distance > bestDistance) {
+                bestDistance = distance;
+                best = eyes.add(direction.multiply(3)).add(0, 0.3, 0);
+            }
+        }
+        return best;
     }
 
     /** Inventory index of a crafting table (hotbar first), or -1. */

@@ -270,12 +270,27 @@ Otherwise the predictions are wrong.
   show-crafting-gui   Off = silent: the crafting window is really
                       opened and used, only not drawn on your
                       screen. The server sees no difference.     Default: off
+  drop-junk           Before crafting, throw out junk (Ctrl+Q,
+                      towards open space) until 2 slots are free.
+                      One stack of cobblestone/netherrack is kept
+                      for Baritone. Needed because stone lying
+                      next to you is picked up the moment a slot
+                      gets free, and then the crafting table
+                      doesn't fit back in.                       Default: on
+    junk-items        What counts as junk: stone, deepslate,
+                      tuff, diorite, granite, andesite, gravel,
+                      dirt, netherrack, basalt, ...
   action-delay-min/max
                       Pause between two actions (ms)             Default: 100 / 300
 
-  No crafting table, fewer than 9 items, recipe not in your recipe book or
-  no free spot for the table: nothing is crafted, stop-when-full works as
-  usual.
+  It only crafts when that really frees inventory slots. Example: a single
+  stack of 64 diamonds becomes 7 blocks + 1 diamond, which needs one slot
+  more, not less. Diamonds start to save room from about two full stacks;
+  coal, redstone and lapis save much more.
+
+  No crafting table, nothing that saves room, recipe not in your recipe
+  book or no free spot for the table: nothing is crafted, stop-when-full
+  works as usual.
 
 [Render]
   render              Highlight predicted ores                   Default: on

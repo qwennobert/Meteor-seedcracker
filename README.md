@@ -93,6 +93,7 @@ because the module simply gives Baritone the next ore.
 | | `compress-items` | Items crafted into blocks (default diamond) |
 | | `compress-at-free-slots` | Start at this many free slots or fewer |
 | | `show-crafting-gui` | Off = silent: the window is really opened and used, just not drawn |
+| | `drop-junk` / `junk-items` | Throw out junk (stone, deepslate, gravel, ...) first so the crafting table fits back in; one stack of building blocks is kept |
 | | `action-delay-min` / `action-delay-max` | Random pause between two actions (ms) |
 | Render | `render`, `render-limit`, `shape-mode`, colors, `tracer` | Highlighting of the predicted ores |
 

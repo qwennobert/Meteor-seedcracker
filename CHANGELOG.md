@@ -4,6 +4,24 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.31 — 2026-10-13
+
+### Fixed
+- Auto compress: the crafting table could not be picked up again. With a full inventory, the stone that
+  Baritone mines stays on the ground next to you, and the moment the table was placed, that stone was picked
+  up into its slot. The same could happen to the slots needed for the crafted blocks.
+- Auto compress started even when crafting freed no space at all (e.g. one stack of 64 diamonds becomes
+  7 blocks + 1 diamond, one slot more). It now only starts when crafting really frees at least one slot.
+
+### Added
+- `drop-junk` (Auto Compress, default on): before placing the table, junk is thrown out (like Ctrl+Q in the
+  inventory, towards the direction with the most open space so it isn't picked up again) until two slots
+  are free. One stack of cobblestone/netherrack/cobbled deepslate is kept for Baritone. If the table still
+  doesn't fit when picking it up, one more junk stack is thrown out. Off: auto compress only starts when no
+  junk lies next to you.
+- `junk-items`: what may be thrown out (stone, deepslate, tuff, diorite, granite, andesite, calcite,
+  dripstone, gravel, flint, dirt, sand, netherrack, basalt, blackstone, soul sand/soil, end stone).
+
 ## 0.2.0+build.30 — 2026-10-13
 
 ### Changed
