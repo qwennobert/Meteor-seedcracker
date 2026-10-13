@@ -4,6 +4,29 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.28 — 2026-10-13
+
+### Added
+- Auto Compress group (experimental, off by default, starts collapsed): when the inventory is (almost) full,
+  the module crafts items into blocks to make room, the way a player would:
+  1. take a crafting table from the inventory (moved into the hotbar like pressing a number key in the
+     inventory, if needed),
+  2. place it on a free spot next to you (turning the head smoothly, no snapping),
+  3. open it, click the recipe in the recipe book (like shift-clicking it, the server fills the grid) and
+     shift-click the result,
+  4. close it, mine the table and pick it up again, then continue mining.
+  There is a short random pause between every action.
+- `auto-compress`: on/off.
+- `compress-items`: which items are crafted into blocks (default diamond; also emerald, coal, redstone,
+  lapis, raw iron/copper/gold, gold nuggets and quartz).
+- `compress-at-free-slots` (default 1): start when this many free slots or fewer are left, or when the ore
+  drops don't fit anymore.
+- `show-crafting-gui` (default off = silent): the crafting window is really opened, clicked and closed, only
+  not drawn on your screen. The server gets exactly the same packets either way.
+- `action-delay-min` / `action-delay-max` (default 100 / 300 ms): pause between two actions.
+- Without a crafting table, enough items, the recipe in your recipe book or a free spot for the table, nothing
+  is crafted and `stop-when-full` / `leave-when-full` work as before.
+
 ## 0.2.0+build.27 — 2026-10-13
 
 ### Added

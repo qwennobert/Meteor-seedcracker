@@ -253,6 +253,30 @@ Otherwise the predictions are wrong.
   So if several ores are right next to each other, a minute can end up
   slightly over the limit.
 
+[Auto Compress] - craft blocks when the inventory is full (experimental)
+  The group starts collapsed. Carry a crafting table in your inventory.
+  When the inventory is (almost) full, the module places the table next to
+  you, opens it, crafts e.g. diamonds into diamond blocks with the recipe
+  book, closes it, mines the table and picks it up again. Everything is done
+  like a player would: smooth head turns and short random pauses.
+
+  auto-compress       On/off                                     Default: off
+  compress-items      Items crafted into blocks: diamond, emerald,
+                      coal, redstone, lapis, raw iron/copper/gold,
+                      gold nugget (-> ingot), quartz             Default: diamond
+  compress-at-free-slots
+                      Start at this many free slots or fewer
+                      (also when the ore drops don't fit)        Default: 1
+  show-crafting-gui   Off = silent: the crafting window is really
+                      opened and used, only not drawn on your
+                      screen. The server sees no difference.     Default: off
+  action-delay-min/max
+                      Pause between two actions (ms)             Default: 100 / 300
+
+  No crafting table, fewer than 9 items, recipe not in your recipe book or
+  no free spot for the table: nothing is crafted, stop-when-full works as
+  usual.
+
 [Render]
   render              Highlight predicted ores                   Default: on
   render-limit        Max. number of highlights (nearest first)  Default: 300

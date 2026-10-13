@@ -2,6 +2,8 @@ package com.qwennobert.seedminer.modules;
 
 import com.github.cubiomes.Cubiomes;
 import com.qwennobert.seedminer.SeedMinerAddon;
+import com.qwennobert.seedminer.compress.Compressible;
+import com.qwennobert.seedminer.compress.Compressor;
 import com.qwennobert.seedminer.predict.OreKind;
 import com.qwennobert.seedminer.predict.OreScanner;
 import com.qwennobert.seedminer.predict.PredictedOre;
@@ -12,6 +14,7 @@ import com.qwennobert.seedminer.util.BaritoneControl;
 import com.qwennobert.seedminer.util.ToolSelector;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
+import meteordevelopment.meteorclient.events.game.OpenScreenEvent;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.BlockUpdateEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -28,6 +31,7 @@ import meteordevelopment.meteorclient.settings.ColorSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
+import meteordevelopment.meteorclient.settings.ItemListSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.StringSetting;
@@ -50,6 +54,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
@@ -85,6 +90,7 @@ public class SeedMiner extends Module {
     private final SettingGroup sgAutoTool = settings.createGroup("Auto Tool");
     private final SettingGroup sgSafety = settings.createGroup("Safety");
     private final SettingGroup sgAntiDetection = settings.createGroup("Anti-Detection", false);
+    private final SettingGroup sgAutoCompress = settings.createGroup("Auto Compress", false);
     private final SettingGroup sgRender = settings.createGroup("Render");
 
     // Seed
@@ -482,6 +488,62 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    // Auto Compress
+
+    private final Setting<Boolean> autoCompress = sgAutoCompress.add(new BoolSetting.Builder()
+        .name("auto-compress")
+        .description("When the inventory is (almost) full, place a crafting table from your inventory, craft blocks with the recipe book (e.g. diamond blocks) and pick the table up again.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<List<Item>> compressItems = sgAutoCompress.add(new ItemListSetting.Builder()
+        .name("compress-items")
+        .description("Which items are crafted into blocks.")
+        .defaultValue(Items.DIAMOND)
+        .filter(Compressible::supports)
+        .visible(autoCompress::get)
+        .build()
+    );
+
+    private final Setting<Integer> compressAtFreeSlots = sgAutoCompress.add(new IntSetting.Builder()
+        .name("compress-at-free-slots")
+        .description("Start when this many free inventory slots or fewer are left, or when the ore drops don't fit anymore.")
+        .defaultValue(1)
+        .range(0, 9)
+        .sliderRange(0, 9)
+        .visible(autoCompress::get)
+        .build()
+    );
+
+    private final Setting<Boolean> showCraftingGui = sgAutoCompress.add(new BoolSetting.Builder()
+        .name("show-crafting-gui")
+        .description("Show the crafting window while crafting. Off (silent): the window is not drawn, but it is really opened, clicked and closed like a player does.")
+        .defaultValue(false)
+        .visible(autoCompress::get)
+        .build()
+    );
+
+    private final Setting<Integer> compressDelayMin = sgAutoCompress.add(new IntSetting.Builder()
+        .name("action-delay-min")
+        .description("Shortest pause between two actions (placing, opening, clicking, ...) in milliseconds.")
+        .defaultValue(100)
+        .range(0, 2000)
+        .sliderRange(0, 1000)
+        .visible(autoCompress::get)
+        .build()
+    );
+
+    private final Setting<Integer> compressDelayMax = sgAutoCompress.add(new IntSetting.Builder()
+        .name("action-delay-max")
+        .description("Longest pause between two actions in milliseconds.")
+        .defaultValue(300)
+        .range(0, 2000)
+        .sliderRange(0, 1000)
+        .visible(autoCompress::get)
+        .build()
+    );
+
     // Render
 
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
@@ -590,6 +652,7 @@ public class SeedMiner extends Module {
     private String autoToolStop;
     private boolean warnedNoSeed;
     private String status = "Idle";
+    private Compressor compressor;
     /** When the module was enabled, for the time limit. */
     private long startedAt;
 
@@ -605,6 +668,7 @@ public class SeedMiner extends Module {
         }
 
         if (BaritoneUtils.IS_AVAILABLE && baritone == null) baritone = new BaritoneControl();
+        if (baritone != null && compressor == null) compressor = new Compressor(mc, baritone, message -> info("%s", message), message -> warning("%s", message));
         applyBaritoneSettings();
 
         warnedNoSeed = false;
@@ -618,6 +682,7 @@ public class SeedMiner extends Module {
 
     @Override
     public void onDeactivate() {
+        if (compressor != null) compressor.abort();
         if (baritone != null) {
             baritone.stop();
             baritone.restore();
@@ -629,8 +694,15 @@ public class SeedMiner extends Module {
         status = "Idle";
     }
 
+    /** Silent auto compress: the crafting window is open, but not drawn. */
+    @EventHandler
+    private void onOpenScreen(OpenScreenEvent event) {
+        if (compressor != null && compressor.hidesScreen(event.screen)) event.cancel();
+    }
+
     @EventHandler
     private void onGameLeft(GameLeftEvent event) {
+        if (compressor != null) compressor.reset();
         resetAll();
         toggle();
     }
@@ -884,7 +956,26 @@ public class SeedMiner extends Module {
             return false;
         }
 
-        if (stopWhenFull.get() && !hasRoomForAnyDrop()) {
+        // Crafting blocks to make room is finished first, it only takes a few seconds
+        if (compressor.isActive()) {
+            status = compressor.tick();
+            return false;
+        }
+
+        boolean full = !hasRoomForAnyDrop();
+        if (autoCompress.get() && (full || freeSlots() <= compressAtFreeSlots.get())) {
+            Compressor.Options options = compressOptions();
+            if (compressor.canStart(options)) {
+                baritone.stop();
+                baritoneStopped = true;
+                collectItem = null;
+                compressor.start(options);
+                status = "Compressing";
+                return false;
+            }
+        }
+
+        if (stopWhenFull.get() && full) {
             stop("No room left for the drops of the selected ores", leaveWhenFull.get());
             return false;
         }
@@ -1132,6 +1223,18 @@ public class SeedMiner extends Module {
         }
         ItemStack offhand = mc.player.getOffHandStack();
         return offhand.isOf(item) && offhand.getCount() < offhand.getMaxCount();
+    }
+
+    private Compressor.Options compressOptions() {
+        return new Compressor.Options(compressItems.get(), showCraftingGui.get(), compressDelayMin.get(), compressDelayMax.get());
+    }
+
+    private int freeSlots() {
+        int free = 0;
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            if (mc.player.getInventory().getStack(i).isEmpty()) free++;
+        }
+        return free;
     }
 
     private boolean hasRoomForAnyDrop() {

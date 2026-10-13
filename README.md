@@ -89,6 +89,11 @@ because the module simply gives Baritone the next ore.
 | | `max-ores-per-minute` | Mine at most this many ores within 60 seconds, then wait (0 = no limit) |
 | | `random-pause` / `pause-min` / `pause-max` | Random pause after each ore (seconds) |
 | | `stone-detours` / `detour-chance` / `detour-distance` | After an ore, mine a random nearby stone block with X % chance |
+| Auto Compress | `auto-compress` | Experimental: when the inventory is (almost) full, place a crafting table from the inventory, craft blocks with the recipe book, mine the table again |
+| | `compress-items` | Items crafted into blocks (default diamond) |
+| | `compress-at-free-slots` | Start at this many free slots or fewer |
+| | `show-crafting-gui` | Off = silent: the window is really opened and used, just not drawn |
+| | `action-delay-min` / `action-delay-max` | Random pause between two actions (ms) |
 | Render | `render`, `render-limit`, `shape-mode`, colors, `tracer` | Highlighting of the predicted ores |
 
 ### Command
