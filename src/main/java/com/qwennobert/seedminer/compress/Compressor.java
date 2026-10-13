@@ -261,7 +261,7 @@ public final class Compressor {
                     int made = mc.player.getInventory().count(current.result) - resultCountBefore;
                     if (made > 0) {
                         if (!crafted.isEmpty()) crafted.append(", ");
-                        crafted.append(made).append(' ').append(current.result.getName().getString());
+                        crafted.append(made).append("x ").append(current.result.getName().getString());
                     }
                     rounds++;
                     set(State.CRAFT);
@@ -374,7 +374,7 @@ public final class Compressor {
         return switch (state) {
             case TO_HOTBAR, CLOSE_INVENTORY, SELECT, AIM_PLACE, PLACE, WAIT_PLACED -> "Compressing: placing crafting table";
             case AIM_OPEN, OPEN, WAIT_OPEN -> "Compressing: opening crafting table";
-            case CRAFT, WAIT_GRID, TAKE, WAIT_TAKEN, CLOSE -> "Compressing: crafting " + (current != null ? current.result.getName().getString() : "");
+            case CRAFT, WAIT_GRID, TAKE, WAIT_TAKEN, CLOSE -> "Compressing: crafting" + (current != null ? " " + current.result.getName().getString() : "");
             case AIM_BREAK, BREAK, WAIT_DROP, PICKUP -> "Compressing: picking up crafting table";
         };
     }

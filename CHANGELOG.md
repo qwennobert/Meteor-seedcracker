@@ -4,6 +4,17 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.30 — 2026-10-13
+
+### Changed
+- Auto compress: the chat message now reads e.g. "Crafted 3x Block of Diamond." and the status no longer
+  shows "crafting" without an item name for a moment.
+- Tested on a Paper server with the GrimAC anticheat: placing, opening, crafting, closing, mining and
+  picking up the table caused no alerts.
+
+### Docs
+- Auto-craft marked as done in the TODO list.
+
 ## 0.2.0+build.29 — 2026-10-13
 
 ### Fixed
