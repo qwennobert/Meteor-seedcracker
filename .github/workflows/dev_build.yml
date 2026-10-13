@@ -14,6 +14,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # Whole history and tags, for the commits since the previous build in the release notes
+          fetch-depth: 0
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -37,6 +39,22 @@ jobs:
         id: version
         run: echo "version=$(grep '^mod-version' gradle/libs.versions.toml | cut -d'"' -f2)+build.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
+      - name: Release Notes
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          {
+            # The section of this build from CHANGELOG.md, if there is one
+            awk -v v="$version" '/^## / { if (p) exit; if ($2 == v) p = 1; next } p' CHANGELOG.md
+            echo
+            echo "### Commits"
+            echo
+            prev=$(git tag -l 'build-*' --sort=-v:refname | grep -vx "build-${{ github.run_number }}" | head -1)
+            git log --reverse --format='#### %s%n%n%b' ${prev:+$prev..}HEAD | grep -v -e '^Co-Authored-By:' -e '^Claude-Session:'
+            echo
+            echo "Full changelog: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md)"
+          } > release-notes.md
+          cat release-notes.md
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -45,5 +63,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Seed Miner ${{ steps.version.outputs.version }}
           make_latest: true
+          body_path: release-notes.md
           files: |
             ./build/libs/*.jar

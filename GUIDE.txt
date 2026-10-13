@@ -46,6 +46,8 @@ IMPORTANT - JAVA 23:
      Every build has its own version, e.g. 0.2.0+build.12, and is built
      automatically on every push. Delete the old jar from the mods folder
      before you add the new one.
+     What changed in a build is shown on its release page and in
+     CHANGELOG.md.
 
   b) Build it yourself:
        ./gradlew build          (Windows: gradlew.bat build)

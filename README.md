@@ -4,7 +4,8 @@ Seed Miner predicts where ores are from the world seed and lets Baritone mine th
 The seed is taken from [SeedMapper](https://github.com/xpple/SeedMapper), or you enter it yourself.
 Everything can be configured in the Meteor GUI.
 
-A detailed step-by-step guide is in [GUIDE.txt](GUIDE.txt).
+A detailed step-by-step guide is in [GUIDE.txt](GUIDE.txt), all changes per version are in
+[CHANGELOG.md](CHANGELOG.md).
 
 > Meant for your own (self-hosted) server or singleplayer. On public servers this is cheating and will get you banned.
 
