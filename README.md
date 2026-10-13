@@ -80,6 +80,8 @@ because the module simply gives Baritone the next ore.
 | | `min-durability` | Don't use tools below this durability (percent) |
 | Safety | `min-health` | Disable at low health |
 | | `stop-when-full` | Disable when the drops of the selected ores don't fit anymore (no free slot and no stack of them with room left) |
+| | `leave-when-full` | Also leave the server then (Auto Reconnect is turned off) |
+| | `time-limit` / `leave-at-time-limit` | Disable after N minutes (0 = off), optionally leave the server; the time left shows in the HUD |
 | | `require-pickaxe` | Disable when there is no pickaxe in the hotbar |
 | | `pause-near-players` / `player-range` | Pause while other players are nearby |
 | Anti-Detection | `anti-detection` | Master switch; the options below only show while it is on (the group starts collapsed, click its title to expand it) |

@@ -32,6 +32,8 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.StringSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.Modules;
+import meteordevelopment.meteorclient.systems.modules.misc.AutoReconnect;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.player.Rotations;
@@ -51,6 +53,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
@@ -354,6 +358,31 @@ public class SeedMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> leaveWhenFull = sgSafety.add(new BoolSetting.Builder()
+        .name("leave-when-full")
+        .description("Also leave the server when the drops don't fit anymore.")
+        .defaultValue(false)
+        .visible(stopWhenFull::get)
+        .build()
+    );
+
+    private final Setting<Integer> timeLimit = sgSafety.add(new IntSetting.Builder()
+        .name("time-limit")
+        .description("Disable after this many minutes. 0 = no limit.")
+        .defaultValue(0)
+        .min(0)
+        .sliderRange(0, 240)
+        .build()
+    );
+
+    private final Setting<Boolean> leaveAtTimeLimit = sgSafety.add(new BoolSetting.Builder()
+        .name("leave-at-time-limit")
+        .description("Also leave the server when the time limit is reached.")
+        .defaultValue(false)
+        .visible(() -> timeLimit.get() > 0)
+        .build()
+    );
+
     private final Setting<Boolean> requirePickaxe = sgSafety.add(new BoolSetting.Builder()
         .name("require-pickaxe")
         .description("Disable when there is no pickaxe in your hotbar.")
@@ -561,6 +590,8 @@ public class SeedMiner extends Module {
     private String autoToolStop;
     private boolean warnedNoSeed;
     private String status = "Idle";
+    /** When the module was enabled, for the time limit. */
+    private long startedAt;
 
     public SeedMiner() {
         super(SeedMinerAddon.CATEGORY, "seed-miner", "Predicts ores from the world seed (via SeedMapper) and mines them with Baritone.");
@@ -568,6 +599,7 @@ public class SeedMiner extends Module {
 
     @Override
     public void onActivate() {
+        startedAt = System.currentTimeMillis();
         if (!BaritoneUtils.IS_AVAILABLE && autoMine.get()) {
             warning("Baritone (Meteor build) is not installed, ores will only be highlighted.");
         }
@@ -833,6 +865,18 @@ public class SeedMiner extends Module {
         return state.getHardness(mc.world, pos) < 0;
     }
 
+    /** Disables the module and, if wanted, leaves the server the way Meteor's Auto Log does. */
+    private void stop(String reason, boolean leave) {
+        info("%s, %s.", reason, leave ? "leaving the server" : "stopping");
+        toggle();
+        if (!leave) return;
+
+        // Otherwise Auto Reconnect would join again right away
+        AutoReconnect autoReconnect = Modules.get().get(AutoReconnect.class);
+        if (autoReconnect.isActive()) autoReconnect.toggle();
+        mc.player.networkHandler.onDisconnect(new DisconnectS2CPacket(Text.literal("[Seed Miner] " + reason + ".")));
+    }
+
     private boolean safetyCheck() {
         if (minHealth.get() > 0 && PlayerUtils.getTotalHealth() <= minHealth.get()) {
             error("Health is low, stopping.");
@@ -841,8 +885,12 @@ public class SeedMiner extends Module {
         }
 
         if (stopWhenFull.get() && !hasRoomForAnyDrop()) {
-            info("No room left for the drops of the selected ores, stopping.");
-            toggle();
+            stop("No room left for the drops of the selected ores", leaveWhenFull.get());
+            return false;
+        }
+
+        if (timeLimit.get() > 0 && System.currentTimeMillis() - startedAt >= timeLimit.get() * 60_000L) {
+            stop("Time limit of " + timeLimit.get() + " minutes reached", leaveAtTimeLimit.get());
             return false;
         }
 
@@ -1190,6 +1238,14 @@ public class SeedMiner extends Module {
         return Math.max(1, (millis + 999) / 1000);
     }
 
+    /** Time left until the time limit as "Time left: m:ss", or null without a limit. */
+    public String timeLeftInfo() {
+        if (!isActive() || timeLimit.get() <= 0) return null;
+
+        long left = Math.max(0, timeLimit.get() * 60_000L - (System.currentTimeMillis() - startedAt)) / 1000;
+        return String.format("Time left: %d:%02d", left / 60, left % 60);
+    }
+
     /** Short summary for the GUI, HUD and command, or null when anti-detection is off. */
     public String antiDetectionInfo() {
         if (!antiDetection.get()) return null;
@@ -1467,6 +1523,8 @@ public class SeedMiner extends Module {
         list.add(theme.label("Predicted: " + ores.size() + "  Mined: " + mined + "  Skipped: " + skipped + "  Invalid: " + invalid));
         String antiDetection = antiDetectionInfo();
         if (antiDetection != null) list.add(theme.label("Anti-Detection: " + antiDetection));
+        String timeLeft = timeLeftInfo();
+        if (timeLeft != null) list.add(theme.label(timeLeft));
 
         WHorizontalList buttons = list.add(theme.horizontalList()).widget();
 

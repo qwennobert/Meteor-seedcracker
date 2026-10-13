@@ -63,6 +63,8 @@ public class SeedMinerHud extends HudElement {
         lines.add("Ores: " + module.predicted() + "  Mined: " + module.mined() + "  Skipped: " + module.skipped());
         String antiDetection = module.antiDetectionInfo();
         if (antiDetection != null) lines.add(antiDetection);
+        String timeLeft = module.timeLeftInfo();
+        if (timeLeft != null) lines.add(timeLeft);
         if (showSeed.get()) {
             ResolvedSeed seed = module.seed();
             lines.add("Seed: " + (seed == null ? "none" : seed.seed()));

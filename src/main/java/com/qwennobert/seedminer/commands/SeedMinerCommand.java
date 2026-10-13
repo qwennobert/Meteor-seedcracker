@@ -57,6 +57,8 @@ public class SeedMinerCommand extends Command {
         info("Predicted: %d, mined: %d, skipped: %d, invalid: %d", module.predicted(), module.mined(), module.skipped(), module.invalid());
         String antiDetection = module.antiDetectionInfo();
         if (antiDetection != null) info("Anti-Detection: %s", antiDetection);
+        String timeLeft = module.timeLeftInfo();
+        if (timeLeft != null) info(timeLeft);
         return SINGLE_SUCCESS;
     }
 

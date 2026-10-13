@@ -215,6 +215,15 @@ Otherwise the predictions are wrong.
                       then only ores whose drops still fit are
                       mined (e.g. diamonds while there is a
                       diamond stack below 64).                   Default: on
+    leave-when-full   Also leave the server then (like Meteor's
+                      Auto Log; Auto Reconnect is turned off so
+                      you don't join again right away)           Default: off
+  time-limit          Disable after this many minutes, counted
+                      from enabling the module. 0 = no limit.
+                      The time left is shown on the module page,
+                      in the HUD and with .seedminer.            Default: 0
+    leave-at-time-limit
+                      Also leave the server when the time is up  Default: off
   require-pickaxe     Disable when there is no pickaxe in the
                       hotbar                                     Default: on
   pause-near-players  Pause while other players are nearby       Default: off
