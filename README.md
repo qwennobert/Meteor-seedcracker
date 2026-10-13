@@ -89,9 +89,9 @@ because the module simply gives Baritone the next ore.
 | | `max-ores-per-minute` | Mine at most this many ores within 60 seconds, then wait (0 = no limit) |
 | | `random-pause` / `pause-min` / `pause-max` | Random pause after each ore (seconds) |
 | | `stone-detours` / `detour-chance` / `detour-distance` | After an ore, mine a random nearby stone block with X % chance |
-| Auto Compress | `auto-compress` | Experimental: when the inventory is (almost) full, place a crafting table from the inventory, craft blocks with the recipe book, mine the table again |
+| Auto Compress | `auto-compress` | Experimental: when the ore drops don't fit anymore, place a crafting table from the inventory, craft blocks with the recipe book, mine the table again |
 | | `compress-items` | Items crafted into blocks (default diamond) |
-| | `compress-at-free-slots` | Start at this many free slots or fewer |
+| | `compress-at-free-slots` | 0 = start when the ore drops don't fit anymore (same "full" as `stop-when-full`); above 0 also start when fewer slots than that are empty |
 | | `show-crafting-gui` | Off = silent: the window is really opened and used, just not drawn |
 | | `drop-junk` / `junk-items` | Throw out junk (stone, deepslate, gravel, ...) first so the crafting table fits back in; one stack of building blocks is kept |
 | | `action-delay-min` / `action-delay-max` | Random pause between two actions (ms) |

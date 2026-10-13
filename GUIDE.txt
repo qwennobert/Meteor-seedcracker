@@ -255,7 +255,7 @@ Otherwise the predictions are wrong.
 
 [Auto Compress] - craft blocks when the inventory is full (experimental)
   The group starts collapsed. Carry a crafting table in your inventory.
-  When the inventory is (almost) full, the module places the table next to
+  When the ore drops don't fit anymore, the module places the table next to
   you, opens it, crafts e.g. diamonds into diamond blocks with the recipe
   book, closes it, mines the table and picks it up again. Everything is done
   like a player would: smooth head turns and short random pauses.
@@ -265,8 +265,12 @@ Otherwise the predictions are wrong.
                       coal, redstone, lapis, raw iron/copper/gold,
                       gold nugget (-> ingot), quartz             Default: diamond
   compress-at-free-slots
-                      Start at this many free slots or fewer
-                      (also when the ore drops don't fit)        Default: 1
+                      Crafting starts when the drops of the
+                      selected ores don't fit anymore (no empty
+                      slot and no stack of them with room), the
+                      same "full" as stop-when-full. Above 0 it
+                      also starts earlier, as soon as fewer than
+                      this many slots are empty.                 Default: 0
   show-crafting-gui   Off = silent: the crafting window is really
                       opened and used, only not drawn on your
                       screen. The server sees no difference.     Default: off

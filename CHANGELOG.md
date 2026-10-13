@@ -4,6 +4,18 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.32 — 2026-10-13
+
+### Changed
+- Auto compress now uses the same "full" as `stop-when-full`: it only crafts when the drops of the selected
+  ores don't fit anymore (no empty slot **and** no stack of them with room). Before, it also started as soon
+  as only one slot was empty, even if more diamonds still fit.
+- `compress-at-free-slots` default 1 → **0**. 0 = only the rule above; above 0 it also starts earlier, as
+  soon as fewer than that many slots are empty.
+- Tested on Paper with GrimAC: inventory full of stone, three full diamond stacks, one crafting table and 160
+  loose stone and tuff lying under the player. Junk was thrown out, 21 diamond blocks crafted, the table was
+  back in the inventory afterwards, no anticheat alerts.
+
 ## 0.2.0+build.31 — 2026-10-13
 
 ### Fixed

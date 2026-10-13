@@ -492,7 +492,7 @@ public class SeedMiner extends Module {
 
     private final Setting<Boolean> autoCompress = sgAutoCompress.add(new BoolSetting.Builder()
         .name("auto-compress")
-        .description("When the inventory is (almost) full, place a crafting table from your inventory, craft blocks with the recipe book (e.g. diamond blocks) and pick the table up again.")
+        .description("When the drops of the selected ores don't fit into the inventory anymore, place a crafting table from your inventory, craft blocks with the recipe book (e.g. diamond blocks) and pick the table up again.")
         .defaultValue(false)
         .build()
     );
@@ -508,8 +508,8 @@ public class SeedMiner extends Module {
 
     private final Setting<Integer> compressAtFreeSlots = sgAutoCompress.add(new IntSetting.Builder()
         .name("compress-at-free-slots")
-        .description("Start when this many free inventory slots or fewer are left, or when the ore drops don't fit anymore.")
-        .defaultValue(1)
+        .description("Crafting starts when the drops of the selected ores don't fit anymore (like stop-when-full). Above 0 it also starts earlier, as soon as fewer than this many slots are empty.")
+        .defaultValue(0)
         .range(0, 9)
         .sliderRange(0, 9)
         .visible(autoCompress::get)
@@ -984,7 +984,7 @@ public class SeedMiner extends Module {
         }
 
         boolean full = !hasRoomForAnyDrop();
-        if (autoCompress.get() && (full || freeSlots() <= compressAtFreeSlots.get())) {
+        if (autoCompress.get() && (full || freeSlots() < compressAtFreeSlots.get())) {
             Compressor.Options options = compressOptions();
             if (compressor.canStart(options)) {
                 baritone.stop();
