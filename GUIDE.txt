@@ -209,7 +209,12 @@ Otherwise the predictions are wrong.
 
 [Safety]
   min-health          Disable at this health or lower (0 = off)  Default: 8
-  stop-when-full      Disable when the inventory is full         Default: on
+  stop-when-full      Disable when the drops of the selected ores
+                      don't fit anymore: no free slot and no
+                      stack of them that still has room. Until
+                      then only ores whose drops still fit are
+                      mined (e.g. diamonds while there is a
+                      diamond stack below 64).                   Default: on
   require-pickaxe     Disable when there is no pickaxe in the
                       hotbar                                     Default: on
   pause-near-players  Pause while other players are nearby       Default: off

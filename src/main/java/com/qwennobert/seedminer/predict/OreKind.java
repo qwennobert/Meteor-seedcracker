@@ -51,6 +51,11 @@ public enum OreKind {
         return blocks;
     }
 
+    /** What the ore normally drops (without silk touch). */
+    public Item drop() {
+        return drop;
+    }
+
     /** True for the normal drop of this ore and for the ore block itself (silk touch). */
     public boolean isDrop(Item item) {
         if (item == drop) return true;

@@ -79,7 +79,7 @@ because the module simply gives Baritone the next ore.
 | | `fortune-fallback` | Use the fortune pickaxe for other blocks too if there is no other pickaxe (otherwise the module stops) |
 | | `min-durability` | Don't use tools below this durability (percent) |
 | Safety | `min-health` | Disable at low health |
-| | `stop-when-full` | Disable when the inventory is full |
+| | `stop-when-full` | Disable when the drops of the selected ores don't fit anymore (no free slot and no stack of them with room left) |
 | | `require-pickaxe` | Disable when there is no pickaxe in the hotbar |
 | | `pause-near-players` / `player-range` | Pause while other players are nearby |
 | Anti-Detection | `anti-detection` | Master switch; the options below only show while it is on (the group starts collapsed, click its title to expand it) |

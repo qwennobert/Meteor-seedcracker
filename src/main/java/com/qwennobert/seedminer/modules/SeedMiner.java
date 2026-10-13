@@ -45,6 +45,8 @@ import net.minecraft.block.FallingBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.tag.BlockTags;
@@ -347,7 +349,7 @@ public class SeedMiner extends Module {
 
     private final Setting<Boolean> stopWhenFull = sgSafety.add(new BoolSetting.Builder()
         .name("stop-when-full")
-        .description("Disable when your inventory has no free slot left.")
+        .description("Disable when the drops of the selected ores don't fit into your inventory anymore. Until then, only ores whose drops still fit are mined.")
         .defaultValue(true)
         .build()
     );
@@ -838,8 +840,8 @@ public class SeedMiner extends Module {
             return false;
         }
 
-        if (stopWhenFull.get() && mc.player.getInventory().getEmptySlot() == -1) {
-            info("Inventory is full, stopping.");
+        if (stopWhenFull.get() && !hasRoomForAnyDrop()) {
+            info("No room left for the drops of the selected ores, stopping.");
             toggle();
             return false;
         }
@@ -1023,7 +1025,7 @@ public class SeedMiner extends Module {
 
         for (Entity entity : mc.world.getEntities()) {
             if (!(entity instanceof ItemEntity item) || item.isRemoved() || ignoredDrops.contains(item.getId())) continue;
-            if (!isWantedDrop(item.getStack())) continue;
+            if (!isWantedDrop(item.getStack()) || !hasRoomFor(item.getStack().getItem())) continue;
 
             double distance = item.squaredDistanceTo(mc.player);
             if (distance <= best) {
@@ -1069,6 +1071,27 @@ public class SeedMiner extends Module {
         ignoredDrops.add(collectItem.getId());
         collectItem = null;
         baritone.stop();
+    }
+
+    /** The item can still be picked up: there is a free slot, or a stack of it that isn't full yet. */
+    private boolean hasRoomFor(Item item) {
+        PlayerInventory inventory = mc.player.getInventory();
+        if (inventory.getEmptySlot() != -1) return true;
+
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isOf(item) && stack.getCount() < stack.getMaxCount()) return true;
+        }
+        ItemStack offhand = mc.player.getOffHandStack();
+        return offhand.isOf(item) && offhand.getCount() < offhand.getMaxCount();
+    }
+
+    private boolean hasRoomForAnyDrop() {
+        for (Block block : blocks.get()) {
+            OreKind kind = OreKind.of(block);
+            if (kind != null && hasRoomFor(kind.drop())) return true;
+        }
+        return false;
     }
 
     private boolean isWantedDrop(ItemStack stack) {
@@ -1258,7 +1281,17 @@ public class SeedMiner extends Module {
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
         Map<BlockPos, Integer> veinSizes = veinPriority.get() > 0 ? veinSizes(maxDistSq) : null;
 
+        // With stop-when-full, ores whose drops don't fit anymore are left for later
+        Set<OreKind> full = EnumSet.noneOf(OreKind.class);
+        if (stopWhenFull.get()) {
+            for (Block block : blocks.get()) {
+                OreKind kind = OreKind.of(block);
+                if (kind != null && !hasRoomFor(kind.drop())) full.add(kind);
+            }
+        }
+
         for (PredictedOre ore : ores.values()) {
+            if (full.contains(ore.kind())) continue;
             BlockPos pos = ore.pos();
             double dx = pos.getX() + 0.5 - px, dy = pos.getY() - py, dz = pos.getZ() + 0.5 - pz;
             // Horizontal only, ores are often far below the player (e.g. diamonds when standing on a mountain)
