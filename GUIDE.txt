@@ -342,7 +342,8 @@ Chat commands (Meteor's prefix is the dot):
   - Ancient debris: enable it in the Nether, height e.g. 8 to 22.
     Bring fire resistance!
   - Bring a good pickaxe (Efficiency, Unbreaking, Mending) and food.
-    Baritone does not eat on its own.
+    Baritone does not eat on its own: turn on Meteor's "Auto Eat". While
+    you eat, Seed Miner pauses (status "Eating") and continues afterwards.
   - A few cobblestone blocks in the inventory help Baritone cover lava,
     build bridges and pillar up to ores above you.
   - Lots of failed targets? Lower "chunk-radius". The module then stays

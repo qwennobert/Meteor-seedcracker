@@ -48,6 +48,9 @@ Every build has its own version (e.g. `0.2.0+build.12`). Remove the old Seed Min
 
 The module page also shows the status and the seed in use, plus the buttons *Rescan*, *Skip target* and *Reset stats*.
 
+**Eating:** Baritone doesn't eat. Use Meteor's Auto Eat: while you eat, the module pauses (no breaking, no tool
+switching) and continues afterwards.
+
 **Stopping:** disable the module (bind a key to it). Baritone's own `#stop` does not stop the module for good,
 because the module simply gives Baritone the next ore.
 

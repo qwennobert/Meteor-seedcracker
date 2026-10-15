@@ -38,6 +38,7 @@ import meteordevelopment.meteorclient.settings.StringSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.misc.AutoReconnect;
+import meteordevelopment.meteorclient.systems.modules.player.AutoEat;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.player.Rotations;
@@ -47,6 +48,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.block.FallingBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
@@ -674,6 +676,7 @@ public class SeedMiner extends Module {
     private boolean warnedNoSeed;
     private String status = "Idle";
     private Compressor compressor;
+    private boolean wasEating;
     /** When the module was enabled, for the time limit. */
     private long startedAt;
 
@@ -768,14 +771,41 @@ public class SeedMiner extends Module {
             return;
         }
 
+        // Let Auto Eat (or you) eat in peace: no breaking, no tool switching, Baritone waits. Otherwise the tool switch
+        // interrupts eating every tick and the block keeps being mined with the food in hand.
+        if (isEating()) {
+            if (!wasEating) {
+                wasEating = true;
+                mc.interactionManager.cancelBlockBreaking();
+                if (baritone.isWorking()) {
+                    baritone.stop();
+                    baritoneStopped = true;
+                }
+            }
+            status = "Eating";
+            return;
+        }
+        wasEating = false;
+
         if (!safetyCheck()) return;
 
         mine();
     }
 
+    private boolean isEating() {
+        AutoEat autoEat = Modules.get().get(AutoEat.class);
+        if (autoEat != null && autoEat.isActive() && autoEat.eating) return true;
+        return mc.player.isUsingItem() && mc.player.getActiveItem().contains(DataComponentTypes.FOOD);
+    }
+
     /** Picks the tool right before a block starts breaking, for Baritone and also for blocks you break yourself. */
     @EventHandler
     private void onStartBreaking(StartBreakingBlockEvent event) {
+        // Breaking while eating would switch away from the food
+        if (isEating()) {
+            event.cancel();
+            return;
+        }
         if (!autoTool.get() || autoToolStop != null) return;
 
         BlockState state = mc.world.getBlockState(event.blockPos);

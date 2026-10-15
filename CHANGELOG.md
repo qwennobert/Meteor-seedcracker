@@ -4,6 +4,16 @@ Every push builds a new version `0.2.0+build.<N>` with its own [release](../../r
 Settings are named as in the Meteor GUI. Defaults only change for settings you never changed yourself:
 Meteor saves changed settings only.
 
+## 0.2.0+build.33 — 2026-10-15
+
+### Fixed
+- With Meteor's Auto Eat, the player kept mining with the food in hand instead of eating. Auto Eat switched
+  to the food, the auto tool switched back to the pickaxe as soon as the next block started breaking, and
+  every switch interrupted eating. Ores in reach were also still broken directly while Auto Eat paused
+  Baritone. Now, while eating (Auto Eat or by hand), the module pauses completely: no breaking, no tool
+  switching, Baritone waits; the status shows "Eating". Afterwards it continues, and the pause doesn't count
+  towards `target-timeout` or `path-retries`.
+
 ## 0.2.0+build.32 — 2026-10-13
 
 ### Changed
